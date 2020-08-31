@@ -15,6 +15,7 @@ namespace Blase.Core
         private IMongoDatabase _db;
         private IMongoCollection<GameUpdate> _gameUpdates;
         private IMongoCollection<RawUpdate> _rawUpdates;
+        private IMongoCollection<Game> _games;
 
         public Datablase()
         {
@@ -26,8 +27,9 @@ namespace Blase.Core
             BsonSerializer.RegisterSerializer(typeof(DateTimeOffset), new DateTimeUtcSerializer());
 
             _client = new MongoClient(connection);
-            _db = _client.GetDatabase("admin");
+            _db = _client.GetDatabase("blaseball");
 
+            _games = _db.GetCollection<Game>("games");
             _gameUpdates = _db.GetCollection<GameUpdate>("gameupdates");
             _rawUpdates = _db.GetCollection<RawUpdate>("rawupdates");
 
@@ -39,25 +41,67 @@ namespace Blase.Core
             _gameUpdates
                 .Indexes.CreateMany(new[]
                 {
-                    new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Ascending(x => x.Timestamp)),
+                    new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Ascending("timestamp")),
                     new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Hashed(x => x.Hash)),
-                    new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Hashed(x => x.GameId))
+                    new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Hashed(x => x.GameId)),
+                    new CreateIndexModel<GameUpdate>("{'payload.season': 1, 'payload.day': 1}")
                 });
 
             _rawUpdates
                 .Indexes.CreateMany(new[]
                 {
                     new CreateIndexModel<RawUpdate>(
-                        Builders<RawUpdate>.IndexKeys.Ascending(nameof(RawUpdate.Timestamp))),
+                        Builders<RawUpdate>.IndexKeys.Ascending("timestamp")),
                     new CreateIndexModel<RawUpdate>(Builders<RawUpdate>.IndexKeys.Hashed(x => x.Hash)),
                 });
         }
 
-        public async Task WriteGames(IEnumerable<GameUpdate> updates)
+        public async Task WriteGameSummaries(IReadOnlyCollection<GameUpdate> updates)
         {
-            var builder = Builders<GameUpdate>.Filter;
-            var bulk = updates.Select(update =>
+            await _games.BulkWriteAsync(updates.Select(update =>
             {
+                var filter = Builders<Game>.Filter.Eq(u => u.Id, update.GameId);
+                var model = Builders<Game>.Update
+                    .SetOnInsert(x => x.Id, update.GameId)
+                    .SetOnInsert(x => x.Season, update.Season)
+                    .SetOnInsert(x => x.Day, update.Day)
+                    .Set(x => x.LastUpdate, update.Payload)
+                    .Set(x => x.LastUpdateHash, update.Hash)
+                    .Min(x => x.Start, update.Timestamp);
+                
+                if (update.Payload.Contains("gameComplete"))
+                    model = model.Min(x => x.End, update.Timestamp);
+
+                return new UpdateOneModel<Game>(filter, model) {IsUpsert = true};
+            }));
+        }
+
+        public async Task UpdateGameIndex()
+        {
+            var def = PipelineDefinition<GameUpdate, Game>.Create(
+                "{$sort: {timestamp: 1}}",
+                @"
+                {
+                    $group: {
+                        _id: '$game_id',
+                        start: {$first: '$timestamp'},
+                        end: {$last: '$timestamp'},
+                        season: {$first: '$payload.season'},
+                        day: {$first: '$payload.day'},
+                        last_update: {$last: '$payload'},
+                        last_update_hash: {$last: '$hash'}
+                    }
+                }", 
+                "{$merge: {into: 'games'}}"
+            );
+            await _gameUpdates.AggregateAsync(def);
+        }
+
+        public async Task WriteGameUpdates(IReadOnlyCollection<GameUpdate> updates)
+        {
+            await _gameUpdates.BulkWriteAsync(updates.Select(update =>
+            {
+                var builder = Builders<GameUpdate>.Filter;
                 var filter = builder.Eq(u => u.Hash, update.Hash) &
                              builder.Eq(u => u.GameId, update.GameId);
 
@@ -65,11 +109,11 @@ namespace Blase.Core
                     .SetOnInsert(x => x.Hash, update.Hash)
                     .SetOnInsert(x => x.GameId, update.GameId)
                     .SetOnInsert(x => x.Payload, update.Payload)
+                    .SetOnInsert(x => x.Season, update.Season)
+                    .SetOnInsert(x => x.Day, update.Day)
                     .Min(x => x.Timestamp, update.Timestamp);
                 return new UpdateOneModel<GameUpdate>(filter, model) {IsUpsert = true};
-            });
-
-            await _gameUpdates.BulkWriteAsync(bulk);
+            }));
         }
 
         public async Task WriteRaw(RawUpdate update)
@@ -107,11 +151,19 @@ namespace Blase.Core
             {
                 Sort = Builders<GameUpdate>.Sort.Ascending(x => x.Timestamp)
             });
+            
             while (await cursor.MoveNextAsync())
-            {
                 foreach (var upd in cursor.Current)
                     yield return upd;
-            }
+        }
+
+        public async IAsyncEnumerable<Game> QueryGamesInSeason(int season)
+        {
+            using var cursor = await _games.FindAsync(Builders<Game>.Filter.Eq(x => x.Season, season));
+
+            while (await cursor.MoveNextAsync())
+                foreach (var upd in cursor.Current)
+                    yield return upd;
         }
     }
 }

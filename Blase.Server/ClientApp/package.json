@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/react": "^16.9.48",
     "@types/react-router": "^5.1.8",
+    "@types/react-router-dom": "^5.1.5",
     "@types/reactstrap": "^8.5.1",
     "ajv": "^6.9.1",
     "cross-env": "^5.2.0",

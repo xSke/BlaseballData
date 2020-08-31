@@ -1,4 +1,4 @@
-.dots {
+.gp-dots {
     font-family:"Lora","Courier New",monospace,serif;
     font-size:32px;
     color:#000;
@@ -9,34 +9,29 @@
     top: 0.35rem;
 }
 
-.events-table {
-    /* table-layout: fixed; */
-}
-
-.row-balls {
+.gp-row-balls {
     width: 1.5em;
 }
 
-.row-strikes, .row-outs {
+.gp-row-strikes, .gp-row-outs {
     width: 1.5em;
 }
 
-.row-batter, .row-pitcher {
+.gp-row-batter, .gp-row-pitcher {
     width: 13em;
 }
 
-.row-inning {
-    width: 2em;
+.gp-row-inning {
+    width: 4em;
 }
 
-.row-score {
-    text-align: right;
+.gp-row-score {
+    text-align: center;
     min-width: 7em;
     width: 8em;
 }
 
-.row-time {
+.gp-row-time {
     text-align: right;
     width: 14em;
-    
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Blase.Core;
 using Nest;
@@ -27,27 +28,36 @@ namespace Blase.Process
             var lastTimestamp = DateTimeOffset.MinValue;
             while (true)
             {
-                var tasks = new List<Task>();
+                async Task Index(IReadOnlyCollection<ElasticGameEvent> events)
+                {
+                    await client.IndexManyAsync(events, IndexName);
+                    Log.Information("Indexed {IndexCount} game events from {TimestampStart} - {TimestampEnd}",
+                        events.Count,
+                        events.Min(b => b.Timestamp),
+                        events.Max(b => b.Timestamp));
+                }
+                
+                var buf = new List<ElasticGameEvent>();
                 await foreach (var update in db.QueryGameUpdatesSince(lastTimestamp))
                 {
-                    var ege = new ElasticGameEvent(update.Timestamp, update.Payload);
+                    buf.Add(new ElasticGameEvent(update.Timestamp, update.Payload, update.Hash));
 
-                    async Task Inner()
+                    if (buf.Count >= 1000)
                     {
-                        await client.IndexAsync(ege, idx => idx.Id(new Id(update.Hash)).Index(IndexName));
-                        Log.Information("Indexed game event for {GameId} @ {Timestamp}", update.GameId, update.Timestamp);
+                        await Index(buf);
+                        buf.Clear();
                     }
-
-                    tasks.Add(Inner());
-
+                    
                     if (update.Timestamp > lastTimestamp)
                         lastTimestamp = update.Timestamp;
                 }
 
-                await Task.WhenAll(tasks);
-                
-                if (tasks.Count > 0)
+                if (buf.Count > 0)
+                {
+                    await Index(buf);
                     Log.Information("Polling for more events");
+                    buf.Clear();
+                }
                 
                 await Task.Delay(2000);
             }

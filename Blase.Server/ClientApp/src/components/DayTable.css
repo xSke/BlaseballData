@@ -1,0 +1,34 @@
+﻿.sp-row-emoji {
+    width: 0;
+    text-align: right;
+}
+
+.sp-row-pitcher {
+    width: 11em;
+}
+
+.sp-row-duration {
+    width: 4em;
+}
+
+.sp-row-link {
+    width: 3em;
+}
+
+.sp-row-score {
+    text-align: right;
+    width: 5em;
+}
+
+.sp-score-badge {
+    font-size: 1em;
+}
+
+.sp-row-away {
+    text-align: right;
+}
+
+.sp-row-vs {
+    text-align: center;
+    width: 1em;
+}

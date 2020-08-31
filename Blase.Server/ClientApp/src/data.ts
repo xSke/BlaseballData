@@ -1,7 +1,8 @@
-export interface GameUpdate {
+﻿export interface GameUpdate {
     lastUpdate: string;
     inning: number;
     topOfInning: boolean;
+    gameComplete: boolean;
 
     awayTeamEmoji: string;
     homeTeamEmoji: string;
@@ -10,7 +11,7 @@ export interface GameUpdate {
     awayBatterName: string | null;
     homePitcherName: string;
     homeBatterName: string | null;
-    
+
     awayScore: number;
     homeScore: number;
 
@@ -20,6 +21,7 @@ export interface GameUpdate {
 
     season: number;
     day: number;
+    weather: number;
 
     homeTeamName: string;
     homeTeamNickname: string;
@@ -30,4 +32,17 @@ export interface GameUpdate {
 export interface GameUpdateWrapper {
     timestamp: string,
     payload: GameUpdate
+}
+
+export interface Game {
+    id: string;
+    season: number;
+    day: number;
+    lastUpdate: GameUpdate;
+    start: string;
+    end: string;
+}
+
+export function toEmoji(input: string) {
+    return String.fromCodePoint(Number(input));
 }

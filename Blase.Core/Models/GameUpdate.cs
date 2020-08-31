@@ -17,6 +17,12 @@ namespace Blase.Core
         
         [BsonElement("payload")]
         public BsonDocument Payload;
+
+        [BsonElement("season")]
+        public int Season;
+        
+        [BsonElement("day")]
+        public int Day;
         
         [BsonElement("hash")]
         public string Hash;
@@ -27,10 +33,14 @@ namespace Blase.Core
 
         public GameUpdate(DateTimeOffset timestamp, Guid gameId, JsonElement payload)
         {
-            Timestamp = timestamp;
-            GameId = gameId;
             Payload = BsonDocument.Parse(payload.GetRawText());
             Hash = JsonHash.HashHex(payload);
+
+            Timestamp = timestamp;
+            GameId = gameId;
+
+            Season = Payload["season"].AsInt32;
+            Day = Payload["day"].AsInt32;
         }
     }
 }

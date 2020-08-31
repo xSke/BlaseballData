@@ -2,11 +2,13 @@
 using System.Linq;
 using System.Text.Json;
 using MongoDB.Bson;
+using Nest;
 
 namespace Blase.Process
 {
     public class ElasticGameEvent
     {
+        public Id Id { get; set; }
         public DateTimeOffset Timestamp { get; set; }
         public Guid GameId { get; set; }
 
@@ -18,11 +20,14 @@ namespace Blase.Process
         public Guid BattingTeam { get; set; }
         public Guid HomeTeam { get; set; }
         public Guid AwayTeam { get; set; }
+        
+        public string PitchingTeamName { get; set; }
+        public string BattingTeamName { get; set; }
 
         public int HomeScore { get; set; }
         public int AwayScore { get; set; }
 
-        public Guid PitcherId { get; set; }
+        public Guid? PitcherId { get; set; }
         public string PitcherName { get; set; }
         public Guid? BatterId { get; set; }
         public string BatterName { get; set; }
@@ -42,11 +47,13 @@ namespace Blase.Process
         public string[] PlayersOnBaseNames { get; set; }
         public int BaseRunners { get; set; }
 
-        public ElasticGameEvent(DateTimeOffset timestamp, BsonDocument payload)
+        public ElasticGameEvent(DateTimeOffset timestamp, BsonDocument payload, string hash)
         {
+            Id = new Id(hash);
+            
             Timestamp = timestamp;
 
-            GameId = new Guid(payload["id"].AsString);
+            GameId = new Guid(payload[payload.Contains("id") ? "id" : "_id"].AsString);
 
             Season = payload["season"].AsInt32;
             Day = payload["day"].AsInt32;
@@ -61,14 +68,21 @@ namespace Blase.Process
             AwayTeam = new Guid(payload["awayTeam"].AsString);
             PitchingTeam = TopOfInning ? HomeTeam : AwayTeam;
             BattingTeam = TopOfInning ? AwayTeam : HomeTeam;
+            
+            PitchingTeamName = payload[TopOfInning ? "homeTeamName" : "awayTeamName"].AsString;
+            BattingTeamName = payload[TopOfInning ? "awayTeamName" : "homeTeamName"].AsString;
 
             HomeScore = payload["homeScore"].AsInt32;
             AwayScore = payload["awayScore"].AsInt32;
 
-            PitcherId = new Guid(payload[TopOfInning ? "awayPitcher" : "homePitcher"].AsString);
+            var pitcherElem = payload[TopOfInning ? "awayPitcher" : "homePitcher"];
+            if (pitcherElem.IsString && !string.IsNullOrWhiteSpace(pitcherElem.AsString))
+                PitcherId = new Guid(pitcherElem.AsString);
             PitcherName = payload[TopOfInning ? "awayPitcherName" : "homePitcherName"].AsString;
 
-            BatterName = payload[TopOfInning ? "awayBatterName" : "homeBatterName"].AsString;
+            var batterNameValue = payload[TopOfInning ? "awayBatterName" : "homeBatterName"];
+            BatterName = batterNameValue.IsBsonNull ? "" : batterNameValue.AsString;
+            
             if (BatterName != "")
                 BatterId = new Guid(payload[TopOfInning ? "awayBatter" : "homeBatter"].AsString);
 
@@ -84,7 +98,9 @@ namespace Blase.Process
             for (var i = 0; i < basesOccupied.Count; i++)
             {
                 PlayersOnBase[basesOccupied[i]] = new Guid(payload["baseRunners"][i].AsString);
-                PlayersOnBaseNames[basesOccupied[i]] = payload["baseRunnerNames"][i].AsString;
+                
+                if (payload.Contains("baseRunnerNames"))
+                    PlayersOnBaseNames[basesOccupied[i]] = payload["baseRunnerNames"][i].AsString;
             }
 
             BaseRunners = payload["baserunnerCount"].AsInt32;

@@ -18,10 +18,14 @@ namespace Blase.Ingest
             
             var db = new Datablase();
 
-            if (args.Length > 0)
-                await IngestFromFile(args[0], db);
-            else
+            if (args.Length == 0 || args[0] == "stream")
                 await IngestFromStream(db);
+            else if (args[0] == "dir")
+                await IngestFromFile(args[1], db);
+            else if (args[0] == "reindex")
+                await db.UpdateGameIndex();
+            else
+                Log.Error("Unknown command {Cmd}", args[0]);
         }
         
         private static GameUpdate ParseUpdate(DateTimeOffset timestamp, JsonElement gameObject)
@@ -79,6 +83,9 @@ namespace Blase.Ingest
         {
             foreach (var file in Directory.GetFiles(filename))
             {
+                if (!file.EndsWith(".json"))
+                    continue;
+                
                 Log.Information("Indexing file {File}", file);
 
                 await using var str = File.OpenRead(file);
@@ -99,7 +106,7 @@ namespace Blase.Ingest
                     var updates = scheduleElem.Value.EnumerateArray()
                         .Select(elem => ParseUpdate(timestamp.Value, elem))
                         .Where(u => u != null).ToArray();
-                    await db.WriteGames(updates);
+                    await db.WriteGameUpdates(updates);
                 }
                 
                 string line;
@@ -112,6 +119,10 @@ namespace Blase.Ingest
 
                 await Task.WhenAll(tasks);
             }
+            
+            Log.Information("Recalculating game indices");
+            await db.UpdateGameIndex();
+            Log.Information("Done :)");
         }
         
         private static async Task IngestFromStream(Datablase db)
@@ -134,7 +145,8 @@ namespace Blase.Ingest
                     .Where(u => u != null)
                     .ToArray();
 
-                await db.WriteGames(games);
+                await db.WriteGameUpdates(games);
+                await db.WriteGameSummaries(games);
                 foreach (var gameUpdate in games)
                     Log.Information("Saved game update {PayloadHash} (game {GameId})", gameUpdate.Hash, gameUpdate.GameId);
             }
