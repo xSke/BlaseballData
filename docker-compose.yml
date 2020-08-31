@@ -1,0 +1,28 @@
+﻿version: '3'
+services:
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.0
+    volumes:
+      - elastic:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+    ports:
+      - 9200:9200
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.9.0
+    environment:
+      ELASTICSEARCH_HOSTS: http://elastic:9200
+    ports:
+      - 5601:5601
+  mongo:
+    image: mongo:4-bionic
+    ports:
+      - 27018:27017
+    volumes:
+      - mongo:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+volumes:
+  elastic:
+  mongo:

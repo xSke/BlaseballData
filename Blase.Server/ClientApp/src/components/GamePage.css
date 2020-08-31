@@ -1,0 +1,42 @@
+.dots {
+    font-family:"Lora","Courier New",monospace,serif;
+    font-size:32px;
+    color:#000;
+
+    line-height: 1rem;
+
+    position: relative;
+    top: 0.35rem;
+}
+
+.events-table {
+    /* table-layout: fixed; */
+}
+
+.row-balls {
+    width: 1.5em;
+}
+
+.row-strikes, .row-outs {
+    width: 1.5em;
+}
+
+.row-batter, .row-pitcher {
+    width: 13em;
+}
+
+.row-inning {
+    width: 2em;
+}
+
+.row-score {
+    text-align: right;
+    min-width: 7em;
+    width: 8em;
+}
+
+.row-time {
+    text-align: right;
+    width: 14em;
+    
+}
