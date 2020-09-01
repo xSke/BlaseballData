@@ -69,7 +69,7 @@ namespace Blase.Core
                     .Set(x => x.LastUpdateHash, update.Hash)
                     .Min(x => x.Start, update.Timestamp);
                 
-                if (update.Payload.Contains("gameComplete"))
+                if (update.Payload["gameComplete"].AsBoolean)
                     model = model.Min(x => x.End, update.Timestamp);
 
                 return new UpdateOneModel<Game>(filter, model) {IsUpsert = true};
