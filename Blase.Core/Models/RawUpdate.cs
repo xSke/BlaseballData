@@ -7,16 +7,10 @@ namespace Blase.Core
 {
     public class RawUpdate
     {
-        public BsonObjectId Id;
-        
-        [BsonElement("timestamp")]
-        public DateTimeOffset Timestamp;
-            
-        [BsonElement("payload")]
-        public BsonDocument Payload;
-        
-        [BsonElement("hash")]
-        public string Hash;
+        [BsonId] public string Id;
+        [BsonElement("firstSeen")] public DateTimeOffset FirstSeen;
+        [BsonElement("lastSeen")] public DateTimeOffset LastSeen;
+        [BsonElement("payload")] public BsonDocument Payload;
 
         public RawUpdate()
         {
@@ -24,9 +18,10 @@ namespace Blase.Core
 
         public RawUpdate(DateTimeOffset timestamp, JsonElement payload)
         {
-            Timestamp = timestamp;
+            Id = JsonHash.HashHex(payload);
+            FirstSeen = timestamp;
+            LastSeen = timestamp;
             Payload = BsonDocument.Parse(payload.GetRawText());
-            Hash = JsonHash.HashHex(payload);
         }
     }
 }

@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
+using Serilog;
 
 namespace Blase.Core
 {
@@ -22,55 +21,28 @@ namespace Blase.Core
             var connection = Environment.GetEnvironmentVariable("DATABLASE_URI");
             if (connection == null)
                 throw new Exception("Need mongodb URI in DATABLASE_URI env...");
-            
-            BsonSerializer.RegisterSerializer(new GuidSerializer(BsonType.String));
-            BsonSerializer.RegisterSerializer(typeof(DateTimeOffset), new DateTimeUtcSerializer());
 
             _client = new MongoClient(connection);
             _db = _client.GetDatabase("blaseball");
 
-            _games = _db.GetCollection<Game>("games");
-            _gameUpdates = _db.GetCollection<GameUpdate>("gameupdates");
-            _rawUpdates = _db.GetCollection<RawUpdate>("rawupdates");
-
-            CreateIndices();
+            _games = _db.GetCollection<Game>("games2");
+            _gameUpdates = _db.GetCollection<GameUpdate>("gameupdates2");
+            _rawUpdates = _db.GetCollection<RawUpdate>("rawupdates2");
         }
-
-        private void CreateIndices()
-        {
-            _gameUpdates
-                .Indexes.CreateMany(new[]
-                {
-                    new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Ascending("timestamp")),
-                    new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Hashed(x => x.Hash)),
-                    new CreateIndexModel<GameUpdate>(Builders<GameUpdate>.IndexKeys.Hashed(x => x.GameId)),
-                    new CreateIndexModel<GameUpdate>("{'payload.season': 1, 'payload.day': 1}")
-                });
-
-            _rawUpdates
-                .Indexes.CreateMany(new[]
-                {
-                    new CreateIndexModel<RawUpdate>(
-                        Builders<RawUpdate>.IndexKeys.Ascending("timestamp")),
-                    new CreateIndexModel<RawUpdate>(Builders<RawUpdate>.IndexKeys.Hashed(x => x.Hash)),
-                });
-        }
-
         public async Task WriteGameSummaries(IReadOnlyCollection<GameUpdate> updates)
         {
             await _games.BulkWriteAsync(updates.Select(update =>
             {
-                var filter = Builders<Game>.Filter.Eq(u => u.Id, update.GameId);
+                var filter = Builders<Game>.Filter.Eq(x => x.Id, update.GameId);
                 var model = Builders<Game>.Update
                     .SetOnInsert(x => x.Id, update.GameId)
-                    .SetOnInsert(x => x.Season, update.Season)
-                    .SetOnInsert(x => x.Day, update.Day)
                     .Set(x => x.LastUpdate, update.Payload)
-                    .Set(x => x.LastUpdateHash, update.Hash)
-                    .Min(x => x.Start, update.Timestamp);
-                
+                    .Max(x => x.LastUpdateTime, update.FirstSeen);
+
+                if (update.Payload["gameStart"].AsBoolean)
+                    model = model.Min("start", update.FirstSeen);
                 if (update.Payload["gameComplete"].AsBoolean)
-                    model = model.Min(x => x.End, update.Timestamp);
+                    model = model.Min("end", update.LastSeen);
 
                 return new UpdateOneModel<Game>(filter, model) {IsUpsert = true};
             }));
@@ -78,92 +50,105 @@ namespace Blase.Core
 
         public async Task UpdateGameIndex()
         {
-            var def = PipelineDefinition<GameUpdate, Game>.Create(
-                "{$sort: {timestamp: 1}}",
-                @"
-                {
-                    $group: {
-                        _id: '$game_id',
-                        start: {$first: '$timestamp'},
-                        end: {$last: '$timestamp'},
-                        season: {$first: '$payload.season'},
-                        day: {$first: '$payload.day'},
-                        last_update: {$last: '$payload'},
-                        last_update_hash: {$last: '$hash'}
-                    }
-                }", 
-                "{$merge: {into: 'games'}}"
-            );
-            await _gameUpdates.AggregateAsync(def);
+            Log.Information("Reindexing game collection");
+            await _gameUpdates.Aggregate(new AggregateOptions { AllowDiskUse = true })
+                .Sort("{firstSeen: 1}")
+                .Group(@"{
+                    _id: '$game',
+                    season: {$first: '$payload.season'},
+                    day: {$first: '$payload.day'},
+                    lastUpdate: {$last: '$payload'},
+                    lastUpdateTime: {$last: '$firstSeen'}
+                }")
+                .MergeAsync(_games);
+
+            Log.Information("Reindexing game start timestamps");
+            await _gameUpdates.Aggregate(new AggregateOptions { AllowDiskUse = true })
+                .Match("{'payload.gameStart': true}")
+                .Group(@"{
+                    _id: '$game',
+                    start: {$min: '$firstSeen'},
+                }")
+                .MergeAsync(_games);
+            
+            Log.Information("Reindexing game end timestamps");
+            await _gameUpdates.Aggregate(new AggregateOptions { AllowDiskUse = true })
+                .Match("{'payload.gameComplete': true}")
+                .Group(@"{
+                    _id: '$game',
+                    end: {$min: '$firstSeen'},
+                }")
+                .MergeAsync(_games);
+
+            Log.Information("Done! :)");
         }
 
         public async Task WriteGameUpdates(IReadOnlyCollection<GameUpdate> updates)
         {
             await _gameUpdates.BulkWriteAsync(updates.Select(update =>
             {
-                var builder = Builders<GameUpdate>.Filter;
-                var filter = builder.Eq(u => u.Hash, update.Hash) &
-                             builder.Eq(u => u.GameId, update.GameId);
-
+                var filter = Builders<GameUpdate>.Filter.Eq(x => x.Id, update.Id);
                 var model = Builders<GameUpdate>.Update
-                    .SetOnInsert(x => x.Hash, update.Hash)
                     .SetOnInsert(x => x.GameId, update.GameId)
                     .SetOnInsert(x => x.Payload, update.Payload)
-                    .SetOnInsert(x => x.Season, update.Season)
-                    .SetOnInsert(x => x.Day, update.Day)
-                    .Min(x => x.Timestamp, update.Timestamp);
+                    .Min(x => x.FirstSeen, update.FirstSeen)
+                    .Max(x => x.LastSeen, update.LastSeen);
+                
                 return new UpdateOneModel<GameUpdate>(filter, model) {IsUpsert = true};
             }));
         }
 
         public async Task WriteRaw(RawUpdate update)
         {
-            var builder = Builders<RawUpdate>.Filter;
-            var filter = builder.Eq(u => u.Hash, update.Hash);
-
+            var filter = Builders<RawUpdate>.Filter.Eq(x => x.Id, update.Id);
+            
             var model = Builders<RawUpdate>.Update
-                .SetOnInsert(x => x.Hash, update.Hash)
                 .SetOnInsert(x => x.Payload, update.Payload)
-                .Min(x => x.Timestamp, update.Timestamp);
+                .Min(x => x.FirstSeen, update.FirstSeen)
+                .Max(x => x.LastSeen, update.LastSeen);
             await _rawUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
         }
 
-        public async IAsyncEnumerable<GameUpdate> QueryGameUpdatesFor(Guid gameId)
+        public IAsyncEnumerable<GameUpdate> GetGameUpdates(Guid gameId, DateTimeOffset after)
         {
-            var builder = Builders<GameUpdate>.Filter;
-            var filter = builder.Eq(x => x.GameId, gameId);
+            var filter = Builders<GameUpdate>.Filter;
             
-            using var cursor = await _gameUpdates.FindAsync(filter, new FindOptions<GameUpdate>
-            {
-                Sort = Builders<GameUpdate>.Sort.Ascending(x => x.Timestamp)
-            });
-            while (await cursor.MoveNextAsync())
-                foreach (var upd in cursor.Current)
-                    yield return upd;
-        }
-        
-        public async IAsyncEnumerable<GameUpdate> QueryGameUpdatesSince(DateTimeOffset last)
-        {
-            var builder = Builders<GameUpdate>.Filter;
-            var filter = builder.Gt(x => x.Timestamp, last.UtcDateTime);
-
-            using var cursor = await _gameUpdates.FindAsync(filter, new FindOptions<GameUpdate>
-            {
-                Sort = Builders<GameUpdate>.Sort.Ascending(x => x.Timestamp)
-            });
-            
-            while (await cursor.MoveNextAsync())
-                foreach (var upd in cursor.Current)
-                    yield return upd;
+            return _gameUpdates.FindAsync(
+                filter.Eq(u => u.GameId, gameId) & filter.Gt(u => u.FirstSeen, after),
+                new FindOptions<GameUpdate>
+                {
+                    Sort = Builders<GameUpdate>.Sort.Ascending(u => u.FirstSeen)
+                }
+            ).ToAsyncEnumerable();
         }
 
-        public async IAsyncEnumerable<Game> QueryGamesInSeason(int season)
+        public class GameDay
         {
-            using var cursor = await _games.FindAsync(Builders<Game>.Filter.Eq(x => x.Season, season));
+            
+            public int Season;
+            public int Day;
+            public Game[] Games;
+            public DateTimeOffset? Start;
+        }
 
-            while (await cursor.MoveNextAsync())
-                foreach (var upd in cursor.Current)
-                    yield return upd;
+        public IAsyncEnumerable<GameDay> GetGamesByDay(int season, int dayStart)
+        {
+            return _games.Aggregate()
+                .Match(x => x.Season == season && x.Day >= dayStart)
+                .Group(@"{
+                    _id: {
+                        Season: '$season',
+                        Day: '$day'
+                    },
+                    Season: {$min: '$season'},
+                    Day: {$min: '$day'},
+                    Games: {$push: '$$ROOT'},
+                    Start: {$min: '$start'}
+                }")
+                .AppendStage<GameDay>("{$unset: '_id'}")
+                .Sort(Builders<GameDay>.Sort.Ascending(x => x.Season).Ascending(x => x.Day))
+                .ToCursorAsync()
+                .ToAsyncEnumerable();
         }
     }
 }

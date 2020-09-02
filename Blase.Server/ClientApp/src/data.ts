@@ -1,4 +1,4 @@
-﻿export interface GameUpdate {
+﻿export interface GamePayload {
     lastUpdate: string;
     inning: number;
     topOfInning: boolean;
@@ -22,6 +22,7 @@
     season: number;
     day: number;
     weather: number;
+    outcomes: string[];
 
     homeTeamName: string;
     homeTeamNickname: string;
@@ -29,20 +30,43 @@
     awayTeamNickname: string;
 }
 
-export interface GameUpdateWrapper {
+export interface GameUpdate {
+    id: string;
     timestamp: string,
-    payload: GameUpdate
+    payload: GamePayload
 }
 
 export interface Game {
     id: string;
+    start: string | null;
+    end: string | null;
+    lastUpdate: GamePayload;
+    lastUpdateTime: string;
+}
+
+export interface Day {
     season: number;
     day: number;
-    lastUpdate: GameUpdate;
-    start: string;
-    end: string;
+    start: string | null;
+    games: Game[];
+}
+
+export interface GamesResponse {
+    days: Day[]
+}
+
+export interface GameUpdatesResponse {
+    updates: GameUpdate[]
 }
 
 export function toEmoji(input: string) {
     return String.fromCodePoint(Number(input));
+}
+
+export const weather: Record<number, {name: string, emoji: string}> = {
+    7: {name: "Solar Eclipse", emoji: "\u{1F311}"},
+    10: {name: "Peanuts", emoji: "\u{1F95C}"},
+    11: {name: "Lots of Birds", emoji: "\u{1F426}"},
+    12: {name: "Feedback", emoji: "\u{1F3A4}"},
+    13: {name: "Reverb", emoji: "\u{1F30A}"}
 }

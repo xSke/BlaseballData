@@ -1,25 +1,24 @@
 ﻿import {useParams} from "react-router";
 import React from 'react';
 import useSWR from "swr";
-import {Game} from "../data";
-import {
-    Container
-} from "reactstrap";
+import {Game, GamesResponse} from "../data";
 
-import {DayTable} from "./DayTable";
+import {DayTable} from "../components/DayTable";
+import {Container} from "../components/Container";
+import { PageHeader } from "antd";
 
 export function DayPage() {
     let {season, day} = useParams();
     season = parseInt(season);
 
-    const {data, error} = useSWR<Game[]>(`/api/seasons/${season-1}/games`);
+    const {data, error} = useSWR<GamesResponse>(`/api/games?season=${season-1}&day=${day-1}&dayCount=1`);
 
     if (!data) {
         return (<div>Loading...</div>);
     }
-    
-    const games = data.filter(g => g.day == day-1);
 
+    const games = (data && data.days.length > 0) ? data.days[0].games : [];
+    
     return (
         <Container>
             <DayTable season={season} day={day} games={games}/>

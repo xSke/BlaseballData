@@ -30,16 +30,7 @@ namespace Blase.Ingest
         
         private static GameUpdate ParseUpdate(DateTimeOffset timestamp, JsonElement gameObject)
         {
-            JsonElement gameIdElem;
-            if (!gameObject.TryGetProperty("id", out gameIdElem) &&
-                !gameObject.TryGetProperty("_id", out gameIdElem))
-            {
-                Log.Warning("Could not find id property in object, skipping");
-                return null;
-            }
-
-            var gameId = gameIdElem.GetGuid();
-            var gameUpdate = new GameUpdate(timestamp, gameId, gameObject);
+            var gameUpdate = new GameUpdate(timestamp, gameObject);
             return gameUpdate;
         }
 
@@ -134,7 +125,7 @@ namespace Blase.Ingest
                 var doc = JsonDocument.Parse(obj);
                 var update = new RawUpdate(timestamp, doc.RootElement);
                 await db.WriteRaw(update);
-                Log.Information("Saved raw event {PayloadHash} at {Timestamp}", update.Hash, timestamp);
+                Log.Information("Saved raw event {PayloadHash} at {Timestamp}", update.Id, timestamp);
                 
                 var scheduleElem = ExtractSchedule(doc.RootElement);
                 if (scheduleElem == null)
@@ -148,7 +139,7 @@ namespace Blase.Ingest
                 await db.WriteGameUpdates(games);
                 await db.WriteGameSummaries(games);
                 foreach (var gameUpdate in games)
-                    Log.Information("Saved game update {PayloadHash} (game {GameId})", gameUpdate.Hash, gameUpdate.GameId);
+                    Log.Information("Saved game update {PayloadHash} (game {GameId})", gameUpdate.Id, gameUpdate.GameId);
             }
 
             var stream = new EventStream(new HttpClient(), Log.Logger);

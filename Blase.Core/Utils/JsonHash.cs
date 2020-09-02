@@ -14,46 +14,45 @@ namespace Blase.Core
         public static string ToHex(byte[] hashData) => 
             BitConverter.ToString(hashData).Replace("-", string.Empty).ToLowerInvariant();
 
+        private static void VisitWrite(JsonElement elem, Utf8JsonWriter writer)
+        {
+            switch (elem.ValueKind)
+            {
+                case JsonValueKind.Object:
+                {
+                    writer.WriteStartObject();
+                    foreach (var prop in elem.EnumerateObject().OrderBy(e => e.Name, StringComparer.Ordinal))
+                    {
+                        writer.WritePropertyName(prop.Name);
+                        VisitWrite(prop.Value, writer);
+                    }
+
+                    writer.WriteEndObject();
+                    break;
+                }
+                case JsonValueKind.Array:
+                {
+                    writer.WriteStartArray();
+                    foreach (var e in elem.EnumerateArray())
+                        VisitWrite(e, writer);
+                    writer.WriteEndArray();
+                    break;
+                }
+                default:
+                    elem.WriteTo(writer);
+                    break;
+            }
+        }
+
         public static byte[] Hash(JsonElement elem)
         {
-            using var hash = new HashingStream(SHA256.Create());
+            using var hasher = SHA256.Create();
             
-            using (var writer = new Utf8JsonWriter(hash))
-            {
-                void Visit(JsonElement elem)
-                {
-                    switch (elem.ValueKind)
-                    {
-                        case JsonValueKind.Object:
-                        {
-                            writer.WriteStartObject();
-                            foreach (var prop in elem.EnumerateObject().OrderBy(e => e.Name, StringComparer.Ordinal))
-                            {
-                                writer.WritePropertyName(prop.Name);
-                                Visit(prop.Value);
-                            }
+            using (var hashStream = new CryptoStream(Stream.Null, hasher, CryptoStreamMode.Write))
+            using (var jsonWriter = new Utf8JsonWriter(hashStream))
+                VisitWrite(elem, jsonWriter);
 
-                            writer.WriteEndObject();
-                            break;
-                        }
-                        case JsonValueKind.Array:
-                        {
-                            writer.WriteStartArray();
-                            foreach (var e in elem.EnumerateArray())
-                                Visit(e);
-                            writer.WriteEndArray();
-                            break;
-                        }
-                        default:
-                            elem.WriteTo(writer);
-                            break;
-                    }
-                }
-                
-                Visit(elem);
-            }
-
-            return hash.GetHash();
+            return hasher.Hash;
         }
     }
 }

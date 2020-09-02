@@ -7,40 +7,33 @@ namespace Blase.Core
 {
     public class GameUpdate
     {
-        public BsonObjectId Id;
-        
-        [BsonElement("timestamp")]
-        public DateTimeOffset Timestamp;
-        
-        [BsonElement("game_id")]
-        public Guid GameId;
-        
-        [BsonElement("payload")]
-        public BsonDocument Payload;
+        [BsonId] public string Id;
 
-        [BsonElement("season")]
-        public int Season;
-        
-        [BsonElement("day")]
-        public int Day;
-        
-        [BsonElement("hash")]
-        public string Hash;
+        [BsonElement("firstSeen")] public DateTimeOffset FirstSeen;
+
+        [BsonElement("lastSeen")] public DateTimeOffset LastSeen;
+
+        [BsonElement("game")] public Guid GameId;
+
+        [BsonElement("payload")] public BsonDocument Payload;
 
         public GameUpdate()
         {
         }
 
-        public GameUpdate(DateTimeOffset timestamp, Guid gameId, JsonElement payload)
+        public GameUpdate(DateTimeOffset timestamp, JsonElement payload)
         {
+            Id = JsonHash.HashHex(payload);
             Payload = BsonDocument.Parse(payload.GetRawText());
-            Hash = JsonHash.HashHex(payload);
 
-            Timestamp = timestamp;
-            GameId = gameId;
+            FirstSeen = timestamp;
+            LastSeen = timestamp;
 
-            Season = Payload["season"].AsInt32;
-            Day = Payload["day"].AsInt32;
+            var gameId = Payload.GetGameId();
+            if (gameId == null)
+                throw new ArgumentException("Could not extract game ID from payload");
+            
+            GameId = gameId.Value;
         }
     }
 }
