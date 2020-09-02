@@ -5,9 +5,9 @@ import {Game, GamesResponse, Day} from "../data";
 
 import './SeasonPage.css';
 import {DayTable} from "../components/DayTable";
-import { Container } from "../components/Container";
 import { Loading } from "../components/Loading";
-import { Alert, Pagination, Divider, Space } from "antd";
+import { Container } from "../components/Container";
+import { Alert, AlertIcon, Heading } from "@chakra-ui/core";
 
 export function SeasonPage() {
     let {season} = useParams();
@@ -19,7 +19,7 @@ export function SeasonPage() {
 
     const {data, error} = useSWR<GamesResponse>(`/api/games?season=${season-1}`);
     if (error) {
-        return <Alert message={error} type="error" />
+        return <Alert status="error"><AlertIcon />{error}</Alert>
     }
 
     let days: Day[] = [];
@@ -39,12 +39,12 @@ export function SeasonPage() {
     }
 
     return (
-        <Container>
-            <h1>Games in Season {season}</h1>
+        <Container my={4}>
+            <Heading>Games in Season {season}</Heading>
 
             {data ? elements : <Loading />}
 
-            <Pagination onChange={onChange} pageSize={currentPageSize} current={currentPage} total={data?.days?.length ?? 0} hideOnSinglePage={true} />
+            {/* <Pagination onChange={onChange} pageSize={currentPageSize} current={currentPage} total={data?.days?.length ?? 0} hideOnSinglePage={true} /> */}
         </Container>
     )
 }

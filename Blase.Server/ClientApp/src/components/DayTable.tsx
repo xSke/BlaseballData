@@ -1,9 +1,9 @@
 ﻿import { Game, toEmoji, weather } from "../data";
 import moment from "moment";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import React, { ReactNode } from "react";
-import "./DayTable.css"
-import { Tag, Tooltip, Divider, Space, Row, Col } from "antd";
+import { useBreakpointValue, Divider, Link, Text, Heading, Stack, StackDivider, Flex, Tooltip, Box, Tag, Button, Spacer, Center } from "@chakra-ui/core";
+import { FixedEmoji } from "./FixedEmoji";
 
 interface DayTableProps {
     games: Game[];
@@ -11,118 +11,166 @@ interface DayTableProps {
     day: number;
 }
 
-function Score({game}: {game: Game}) {
+function Weather({game}: {game: Game}) {
+    const info = weather[game.lastUpdate.weather];
+    if (info) {
+        return (
+            <Tooltip label={info.name}>
+                <Box>
+                    <FixedEmoji>{info.emoji}</FixedEmoji>
+                </Box>
+            </Tooltip>
+        );
+    }
+    return <>{game.lastUpdate.weather}</>
+}
+
+function Score({game, fixed}: {game: Game, fixed: boolean}) {
+    let color = "green";
+
+    if (game.lastUpdate.gameComplete)
+        color = "red";
+
+    if (game.lastUpdate.shame)
+        color = "purple";
+
     return (
-        <Tag style={{width: "4em", textAlign: "center"}}>{game.lastUpdate.awayScore} - {game.lastUpdate.homeScore}</Tag>
+        <Link as={RouterLink} to={`/game/${game.id}`}>
+            <Tag justifyContent="center" w={fixed ? 16 : null}>
+                {`${game.lastUpdate.awayScore} - ${game.lastUpdate.homeScore}`}
+            </Tag>
+        </Link>
     )
 }
 
-function Bold(props: {bold: boolean, children: ReactNode}) {
-    if (props.bold)
-        return (<strong>{props.children}</strong>);
-    return (<>{props.children}</>);
-}
-
-
-function TeamEmoji(props: {emoji: string}) {
-    return <>{toEmoji(props.emoji)}</>
-}
-
 function Duration({game}: {game: Game}) {
+    let content = "LIVE";
     if (game.end) {
         const startMoment = moment(game.start);
         const endMoment = moment(game.end);
         const diff = endMoment.diff(startMoment);
 
-        return <>{moment.utc(diff).format("H:mm:ss")}</>;
+        content = moment.utc(diff).format("H:mm:ss");
     }
-    return <strong>LIVE</strong>;
+
+    return <Button variant="ghost" w={16} size="xs" as={RouterLink} to={`/game/${game.id}`}>
+        {content}
+    </Button>;
 }
 
-function Outcomes({outcomes}: {outcomes: string[]}) {
+function Team(type: string, other: string) {
+    return ({game, align}: {game: Game, align: "left" | "right"}) => {
+        const evt = game.lastUpdate as dynamic;
 
-    let elems = [];
-    for (const outcomeText of outcomes) {
-        if (outcomeText.toLowerCase().indexOf("reverb") > -1)
-            elems.push(<Tooltip title={outcomeText}><Tag>{"\u{1F30A}"} Reverb</Tag></Tooltip>);
-        if (outcomeText.toLowerCase().indexOf("feedback") > -1)
-            elems.push(<Tooltip title={outcomeText}><Tag>{"\u{1F3A4}"} Feedback</Tag></Tooltip>);
-        if (outcomeText.toLowerCase().indexOf("umpire") > -1)
-            elems.push(<Tooltip title={outcomeText}><Tag>{"\u{1F525}"} Incineration</Tag></Tooltip>);
-        if (outcomeText.toLowerCase().indexOf("peanut") > -1)
-            elems.push(<Tooltip title={outcomeText}><Tag>{"\u{1F95C}"} Peanut</Tag></Tooltip>);
-
+        const weight = (evt[`${type}Score`] as number) > (evt[`${other}Score`] as number) ? "semibold" : "normal";
+        return (
+            <Text as="span" fontWeight={weight}>
+                {align == "left" ? <FixedEmoji>{toEmoji(evt[`${type}TeamEmoji`] as string)}</FixedEmoji> : null}{" "}
+                {evt[`${type}TeamNickname`] as string}
+                {" "}{align == "right" ? <FixedEmoji>{toEmoji(evt[`${type}TeamEmoji`] as string)}</FixedEmoji> : null}
+            </Text>
+        )
     }
-    return <>{elems}</>;
 }
 
-function Weather({game}: {game: Game}) {
-    const info = weather[game.lastUpdate.weather];
-    if (info) {
-        return <Tooltip title={info.name}><span style={{display: "inline-block", width: "2em"}}>{info.emoji}</span></Tooltip>;
-    }
-    return <>{game.lastUpdate.weather}</>
+const AwayTeam = Team("away", "home");
+const HomeTeam = Team("home", "away");
+
+interface GameOutcomeEvent {
+    emoji: string;
+    name: string;
 }
 
-function Item({game}: {game: Game}) {
+function Events({game}: {game: Game}) {
+    let types: Record<string, GameOutcomeEvent> = {
+        "reverb": { emoji: "\u{1F30A}", name: "Reverb" },
+        "feedback": { emoji: "\u{1F3A4}", name: "Feedback" },
+        "umpire": { emoji: "\u{1F525}", name: "Incineration" },
+        "peanut": { emoji: "\u{1F95C}", name: "Peanut" },
+    }
+
+    const elems = [];
+    for (const outcomeText of game.lastUpdate.outcomes) {
+        for (const searchKey of Object.keys(types)) {
+            const type = types[searchKey];
+
+            if (outcomeText.toLowerCase().indexOf(searchKey) > -1) {
+                const elem = <Tooltip label={outcomeText}>
+                    <Tag>{type.emoji} {type.name}</Tag>
+                </Tooltip>;
+
+                elems.push(elem);
+            }
+        }
+    }
+
+    if (elems)
+        return <Box as="span">{elems}</Box>;
+    else
+        return <></>;
+}
+
+function ViewLink({game}: {game: Game}) {
+    return <Button variant="outline" size="xs" as={RouterLink} to={`/game/${game.id}`}>View</Button>;
+}
+
+function GameItemDualLine({game}: {game: Game}) {
     return (
-        <div>
-        <Row>
-            <Col xs={24} md={18}>
+        <Stack flex={1} spacing={1}>
+            <Stack direction="row" spacing={2}>
+                <AwayTeam game={game} align="left" />
+                <Spacer />
                 <Weather game={game} />
-                <Divider type="vertical" />
-                <Score game={game} />
-                <Divider type="vertical" />
-                <Space direction="horizontal">
-                    <span style={{display: "inline-block"/*, width: "12em"*/, textAlign: "right"}}>
-                        <Bold bold={game.lastUpdate.awayScore > game.lastUpdate.homeScore}>
-                            <TeamEmoji emoji={game.lastUpdate.awayTeamEmoji} /> {game.lastUpdate.awayTeamNickname}
-                        </Bold>
-                    </span>
-                    <small>vs.</small>
-                    <Bold bold={game.lastUpdate.homeScore > game.lastUpdate.awayScore}>
-                        <TeamEmoji emoji={game.lastUpdate.homeTeamEmoji} /> {game.lastUpdate.homeTeamNickname}
-                    </Bold>
-                </Space>
-            </Col>
-            <Col xs={24} md={6} style={{textAlign: "right"}}>
-            {game.lastUpdate.outcomes ? (<>
-                <Outcomes outcomes={game.lastUpdate.outcomes} />
-                <Divider type="vertical" />
-            </>) : []}
+                <Score game={game} fixed={true} />
+            </Stack>
+
+            <Stack direction="row" spacing={2}>
+                <HomeTeam game={game} align="left" />
+                <Spacer />
+                <Events game={game} />
                 <Duration game={game} />
-             <Divider type="vertical" />
-             <Link to={`/games/${game.id}`}>View</Link>
-            </Col>
-        </Row>
-        <Divider type="horizontal" style={{margin: "12px 0"}} />
-        </div> 
+            </Stack>
+        </Stack>
+    )
+}
 
+function GameItemInline({game}: {game: Game}) {
+    return (
+        <Flex>
+            <Stack direction="row" spacing={2} >
+                <AwayTeam game={game} align="left" />
+                <Box><small>vs.</small></Box>
+                <HomeTeam game={game} align="right" />
+            </Stack>
 
-        // <List.Item>
-        //     {/* <List.Item.Meta title={<Title />} /> */}
+            <Spacer />
 
-        //     {game.lastUpdate.outcomes ? (<>
-        //         <Outcomes outcomes={game.lastUpdate.outcomes} />
-        //         <Divider type="vertical" />
-        //     </>) : []}
-        //     <Duration game={game} />
-        //     <Divider type="vertical" />
-        //     <Link to={`/games/${game.id}`}>View</Link>
-        // </List.Item>
-    );
+            <Stack direction="row" spacing={2}>
+                <Events game={game} />
+                <Divider orientation="vertical" />
+                <Weather game={game} />
+                <Divider orientation="vertical" />
+                <Duration game={game} />
+                <Divider orientation="vertical" />
+                <Score game={game} fixed={true} />
+            </Stack>
+        </Flex>
+    )
+}
+
+function GameItem({game}: {game: Game}) {
+    const renderInline = useBreakpointValue({base: false, sm: true});
+    return renderInline ? <GameItemInline game={game} /> : <GameItemDualLine game={game} />;
 }
 
 export function DayTable(props: DayTableProps) {
     return (
-        <p>
-            <h3>Season <strong>{props.season}</strong>, Day <strong>{props.day}</strong></h3>
+        <Box mt={4} mb={8}>
+            <Heading size="md">Season <strong>{props.season}</strong>, Day <strong>{props.day}</strong></Heading>
 
-            {/* <Space align="baseline" direction="vertical"> */}
-            <Divider type="horizontal" style={{margin: "12px 0"}} />
-                {props.games.map(game => <Item key={game.id} game={game} />)}
-            {/* </Space> */}
-            {/* <List dataSource={props.games} renderItem={Item} /> */}
-        </p>
+            <Stack my={4} spacing={2} divider={<StackDivider borderColor="gray.200" />}>
+                {props.games.map(game => <GameItem key={game.id} game={game} />)}
+            </Stack>
+        </Box>
     )
 }

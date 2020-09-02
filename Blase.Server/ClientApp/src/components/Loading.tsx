@@ -1,6 +1,11 @@
 import React from "react";
-import { Spin } from "antd";
+import { Text, Spinner, VStack } from "@chakra-ui/core";
 
 export function Loading() {
-    return <div style={{textAlign: "center", margin: "2rem"}}><Spin /></div>;
+    return (
+        <VStack my={8}>
+            <Spinner />
+            <Text>Loading...</Text>
+        </VStack>
+    );
 }

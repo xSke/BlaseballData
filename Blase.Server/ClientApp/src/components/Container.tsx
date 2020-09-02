@@ -1,17 +1,12 @@
-import { ReactNode } from "react";
 import React from 'react';
-import { Card } from "antd";
+import { Box, useTheme } from '@chakra-ui/core';
 
-export function BareContainer(props: { children: ReactNode }) {
-    return <div style={{ maxWidth: "1160px", margin: "auto", padding: "0 1rem" }}>
-        {props.children}
-    </div>
-}
-
-export function Container(props: { children: ReactNode }) {
-    return <div style={{ maxWidth: "1160px", margin: "1rem auto", padding: "0 1rem" }}>
-        <Card>
-            {props.children}
-        </Card>
-    </div>
-}
+export const Container = ({ children, ...props }: any) => {
+    const theme = useTheme()
+  
+    return (
+      <Box {...props} mx="auto" px={4} w="100%" maxW={['full', 'full', ...theme.breakpoints.slice(1)]}>
+        {children}
+      </Box>
+    )
+  }

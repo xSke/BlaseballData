@@ -1,28 +1,17 @@
 import React from 'react';
-import {Layout, Menu} from "antd";
-import { Container, BareContainer } from './components/Container';
-import { Link } from 'react-router-dom';
+import { Stack, VStack, Center, Text, Box } from '@chakra-ui/core';
+
 
 export function PageLayout(props: {children: React.ReactNode}) {
     return (
-        <>
-            <BareContainer>
-                <Menu mode="horizontal" theme="light">
-                    <Menu.Item><strong>Blase.Server</strong></Menu.Item>
-                    <Menu.Item><Link to="/season/3">Season 3</Link></Menu.Item>
-                    <Menu.Item><Link to="/season/4">Season 4</Link></Menu.Item>
-                    <Menu.Item><Link to="/season/5">Season 5</Link></Menu.Item>
-                </Menu>
-            </BareContainer>
+        <Stack spacing={4}>
+            <Box mt={4}>
+                {props.children}
+            </Box>
 
-            <Layout>
-                <Layout.Content>
-                    {props.children}
-                </Layout.Content>
-                <Layout.Footer style={{ textAlign: 'center' }}>
-                    Brought to you by the {"\u{1f36c}"} Kansas City Breath Mints: <em>"Fresh Breath, Here We Come."</em>
-                </Layout.Footer>
-            </Layout>
-        </>
+            <Text fontSize="sm" textAlign="center" mb={4} as="em" color="gray.700">
+                Brought to you by the {"\u{1f36c}"} Kansas City Breath Mints: <em>"Fresh Breath, Here We Come."</em>
+            </Text>
+        </Stack>
     )
 }

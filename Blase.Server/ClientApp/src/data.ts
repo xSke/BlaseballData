@@ -3,6 +3,7 @@
     inning: number;
     topOfInning: boolean;
     gameComplete: boolean;
+    shame: boolean;
 
     awayTeamEmoji: string;
     homeTeamEmoji: string;
@@ -30,7 +31,7 @@
     awayTeamNickname: string;
 }
 
-export interface GameUpdate {
+export type GameUpdate = {
     id: string;
     timestamp: string,
     payload: GamePayload
