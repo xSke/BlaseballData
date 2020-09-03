@@ -29,6 +29,9 @@
     homeTeamNickname: string;
     awayTeamName: string;
     awayTeamNickname: string;
+
+    basesOccupied: number[];
+    baseRunnerNames: string[];
 }
 
 export type GameUpdate = {

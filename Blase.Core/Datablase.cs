@@ -40,9 +40,9 @@ namespace Blase.Core
                     .Max(x => x.LastUpdateTime, update.FirstSeen);
 
                 if (update.Payload["gameStart"].AsBoolean)
-                    model = model.Min("start", update.FirstSeen);
+                    model = model.Min(x => x.Start, update.FirstSeen);
                 if (update.Payload["gameComplete"].AsBoolean)
-                    model = model.Min("end", update.LastSeen);
+                    model = model.Min(x => x.End, update.LastSeen);
 
                 return new UpdateOneModel<Game>(filter, model) {IsUpsert = true};
             }));
@@ -124,7 +124,6 @@ namespace Blase.Core
 
         public class GameDay
         {
-            
             public int Season;
             public int Day;
             public Game[] Games;

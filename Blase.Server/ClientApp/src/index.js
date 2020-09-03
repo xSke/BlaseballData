@@ -9,7 +9,7 @@ import { merge } from "@chakra-ui/utils"
 const customTheme = merge(theme, {
     components: {
         Heading: {
-            baseStyle: { fontWeight: "normal" },
+            baseStyle: { fontWeight: "semibold" },
             defaultProps: { size: "lg" }
         }
     }

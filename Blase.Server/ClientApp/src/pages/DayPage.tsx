@@ -5,7 +5,6 @@ import {Game, GamesResponse} from "../data";
 
 import {DayTable} from "../components/DayTable";
 import {Container} from "../components/Container";
-import { PageHeader } from "antd";
 
 export function DayPage() {
     let {season, day} = useParams();
