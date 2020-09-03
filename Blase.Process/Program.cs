@@ -38,9 +38,9 @@ namespace Blase.Process
                 }
                 
                 var buf = new List<ElasticGameEvent>();
-                await foreach (var update in db.QueryGameUpdatesSince(lastTimestamp))
+                await foreach (var update in db.GetGameUpdates(null, lastTimestamp))
                 {
-                    buf.Add(new ElasticGameEvent(update.Timestamp, update.Payload, update.Hash));
+                    buf.Add(new ElasticGameEvent(update.FirstSeen, update.Payload, update.Id));
 
                     if (buf.Count >= 1000)
                     {
@@ -48,8 +48,8 @@ namespace Blase.Process
                         buf.Clear();
                     }
                     
-                    if (update.Timestamp > lastTimestamp)
-                        lastTimestamp = update.Timestamp;
+                    if (update.FirstSeen > lastTimestamp)
+                        lastTimestamp = update.FirstSeen;
                 }
 
                 if (buf.Count > 0)

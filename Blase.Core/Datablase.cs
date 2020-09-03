@@ -109,12 +109,15 @@ namespace Blase.Core
             await _rawUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
         }
 
-        public IAsyncEnumerable<GameUpdate> GetGameUpdates(Guid gameId, DateTimeOffset after)
+        public IAsyncEnumerable<GameUpdate> GetGameUpdates(Guid? gameId, DateTimeOffset after)
         {
-            var filter = Builders<GameUpdate>.Filter;
-            
+            var builder = Builders<GameUpdate>.Filter;
+            var filter = builder.Gt(u => u.FirstSeen, after);
+            if (gameId != null)
+                filter &= builder.Eq(u => u.GameId, gameId.Value);
+
             return _gameUpdates.FindAsync(
-                filter.Eq(u => u.GameId, gameId) & filter.Gt(u => u.FirstSeen, after),
+                filter,
                 new FindOptions<GameUpdate>
                 {
                     Sort = Builders<GameUpdate>.Sort.Ascending(u => u.FirstSeen)
