@@ -7,7 +7,7 @@ export function NavMenu() {
   return (
     <Box py={4} bg="gray.100">
       <Container>
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={4}>
           <Text fontSize="lg" fontWeight="semibold">Blaseball Viewer</Text>
 
           <Spacer />

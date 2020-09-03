@@ -65,7 +65,7 @@ function Batter(props: UpdateProps & TagProps & TextProps) {
         return <Text as="span" {...props} />;
 
     return <Tag size="sm" pr={2} {...props}>
-        <FixedEmoji fontSize="lg" w={4} mr={4}>{batterEmoji}</FixedEmoji>
+        <FixedEmoji w={4} mr={2}>{batterEmoji}</FixedEmoji>
         <Text {...props}>{batterName}</Text>
     </Tag> 
 }
@@ -86,7 +86,7 @@ function Pitcher(props: UpdateProps & TextProps) {
 
 const Balls = (props: UpdateProps & TextProps) => <Circles label="Balls" amount={props.evt.atBatBalls} total={3} {...props} />;
 const Strikes = (props: UpdateProps & TextProps) => <Circles label="Strikes" amount={props.evt.atBatStrikes} total={2} {...props} />;
-const Outs = (props: UpdateProps & TextProps) => <Circles label="Strikes" amount={props.evt.halfInningOuts} total={2} {...props} />;
+const Outs = (props: UpdateProps & TextProps) => <Circles label="Outs" amount={props.evt.halfInningOuts} total={2} {...props} />;
 
 function AtBatInfo(props: UpdateProps & BoxProps) {
     return <Stack direction="row" spacing={2} {...props}>
@@ -100,12 +100,20 @@ function Base(props: { base: number } & UpdateProps & TextProps) {
     const {basesOccupied, baseRunnerNames} = props.evt;
 
     const myIndex = basesOccupied.indexOf(props.base);
-    if (myIndex > -1)
-        return <Tooltip label={baseRunnerNames[myIndex]}>
-            <Text as="span" {...props}>{"\u{25C6}"}</Text>
-        </Tooltip>;
-    else
+    if (myIndex > -1) {
+        // Older logs (pre-S4) don't have defined blaserunner identities
+        if (baseRunnerNames) {
+            return (
+                <Tooltip label={baseRunnerNames[myIndex]}>
+                    <Text as="span" {...props}>{"\u{25C6}"}</Text>
+                </Tooltip>
+            );
+        } else {
+            return <Text as="span" {...props}>{"\u{25C6}"}</Text>;
+        }
+    } else {
         return <Text as="span" {...props}>{"\u{25C7}"}</Text>;
+    }
 }
 
 function BlaseRunners(props: UpdateProps & BoxProps) {
