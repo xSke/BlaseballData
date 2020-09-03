@@ -16,7 +16,7 @@ function Circles(props: {amount: number, total: number, label: string} & TextPro
         // out += i < props.amount ? "\u{26AB}" : "\u{26AA}";
     }
     return <Tooltip label={props.label}>
-        <Text as="span" fontSize="xl" lineHeight="1.5rem" {...props}>{out.trimEnd()}</Text>
+        <Text as="span" fontSize="xl" lineHeight="1.5rem" {...props}>{out}</Text>
     </Tooltip>;
 }
 
