@@ -23,14 +23,14 @@ function Score({game, fixed, ...props}: {game: Game, fixed: boolean} & LinkProps
     let color = "green";
 
     if (game.lastUpdate.gameComplete)
-        color = "red";
+        color = "gray";
 
     if (game.lastUpdate.shame)
         color = "purple";
 
     return (
         <Link as={RouterLink} to={`/game/${game.id}`} {...props}>
-            <Tag fontWeight="semibold" justifyContent="center" w={fixed ? 16 : undefined}>
+            <Tag colorScheme={color} fontWeight="semibold" justifyContent="center" w={fixed ? 16 : undefined}>
                 {`${game.lastUpdate.awayScore} - ${game.lastUpdate.homeScore}`}
             </Tag>
         </Link>
