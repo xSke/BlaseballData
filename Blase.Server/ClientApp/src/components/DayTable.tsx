@@ -30,7 +30,7 @@ function Score({game, fixed, ...props}: {game: Game, fixed: boolean} & LinkProps
 
     return (
         <Link as={RouterLink} to={`/game/${game.id}`} {...props}>
-            <Tag fontWeight="semibold" justifyContent="center" w={fixed ? 16 : null}>
+            <Tag fontWeight="semibold" justifyContent="center" w={fixed ? 16 : undefined}>
                 {`${game.lastUpdate.awayScore} - ${game.lastUpdate.homeScore}`}
             </Tag>
         </Link>
@@ -52,23 +52,28 @@ function Duration({game, ...props}: {game: Game} & ButtonProps) {
     </Button>;
 }
 
-function Team(type: string, other: string) {
+function Team(type: "home" | "away") {
     return (props: {game: Game} & FlexProps) => {
-        const evt = props.game.lastUpdate as dynamic;
-
-        const weight = (evt[`${type}Score`] as number) > (evt[`${other}Score`] as number) ? "semibold" : "normal";
+        const evt = props.game.lastUpdate;
+        
+        const ourScore = type === "home" ? evt.homeScore : evt.awayScore;
+        const ourEmoji = type === "home" ? evt.homeTeamEmoji : evt.awayTeamEmoji;
+        const ourNickname = type === "home" ? evt.homeTeamNickname : evt.awayTeamNickname;
+        const otherScore = type === "home" ? evt.awayScore : evt.homeScore;
+        
+        const weight = ourScore > otherScore ? "semibold" : "normal";
         return (
             <Flex fontWeight={weight} {...props}>
-                <FixedEmoji>{toEmoji(evt[`${type}TeamEmoji`] as string)}</FixedEmoji>
+                <FixedEmoji>{toEmoji(ourEmoji)}</FixedEmoji>
                 <Box w={1} />
-                <Text as="span">{evt[`${type}TeamNickname`] as string}</Text>
+                <Text as="span">{ourNickname}</Text>
             </Flex>
         )
     }
 }
 
-const AwayTeam = Team("away", "home");
-const HomeTeam = Team("home", "away");
+const AwayTeam = Team("away" );
+const HomeTeam = Team("home");
 
 interface GameOutcomeEvent {
     emoji: string;
