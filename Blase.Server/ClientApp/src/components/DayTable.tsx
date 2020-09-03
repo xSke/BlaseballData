@@ -1,8 +1,8 @@
 ﻿import { Game, toEmoji, weather } from "../data";
 import moment from "moment";
 import { Link as RouterLink } from "react-router-dom";
-import React, { ReactNode } from "react";
-import { useBreakpointValue, Divider, Link, Text, Heading, Stack, StackDivider, Flex, Tooltip, Box, Tag, Button, Spacer, Center, Grid, TooltipProps, ButtonProps, LinkProps, FlexProps } from "@chakra-ui/core";
+import React from "react";
+import { Link, Text, Heading, Stack, StackDivider, Flex, Tooltip, Box, Tag, Button, Spacer, Center, Grid, TooltipProps, ButtonProps, LinkProps, FlexProps, BoxProps } from "@chakra-ui/core";
 import { FixedEmoji } from "./FixedEmoji";
 
 function Weather({game, ...props}: {game: Game} & BoxProps) {
@@ -75,7 +75,7 @@ interface GameOutcomeEvent {
     name: string;
 }
 
-function Events({game, ...props}: {game: Game} & TooltipProps & BoxProps) {
+function Events({game, ...props}: {game: Game} & BoxProps) {
     let types: Record<string, GameOutcomeEvent> = {
         "reverb": { emoji: "\u{1F30A}", name: "Reverb" },
         "feedback": { emoji: "\u{1F3A4}", name: "Feedback" },
