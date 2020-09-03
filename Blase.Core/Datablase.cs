@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using Serilog;
 
@@ -36,6 +35,8 @@ namespace Blase.Core
                 var filter = Builders<Game>.Filter.Eq(x => x.Id, update.GameId);
                 var model = Builders<Game>.Update
                     .SetOnInsert(x => x.Id, update.GameId)
+                    .Set(x => x.Season, update.Payload["season"].AsInt32)
+                    .Set(x => x.Day, update.Payload["day"].AsInt32)
                     .Set(x => x.LastUpdate, update.Payload)
                     .Max(x => x.LastUpdateTime, update.FirstSeen);
 
