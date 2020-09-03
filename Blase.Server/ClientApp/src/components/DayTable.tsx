@@ -104,7 +104,7 @@ function Events({game, ...props}: {game: Game} & BoxProps) {
     }
 
     if (elems)
-        return <Box as="span" {...props}>{elems}</Box>;
+        return <Stack direction="row" spacing={2} as="span" {...props}>{elems}</Stack>;
     else
         return <></>;
 }
