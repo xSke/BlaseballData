@@ -11,6 +11,7 @@ import { Heading, Box, Stack, StackDivider, Text, Tag, Grid, TextProps, BoxProps
 import { isImportant, GameUpdate, GamePayload } from '../blaseball/update';
 import {getBattingTeam, getPitchingTeam} from '../blaseball/team';
 import {GameUpdatesResponse} from "../blaseball/api";
+import {toEmoji} from "../blaseball/util";
 
 interface WrappedUpdateProps {
     update: GameUpdate
@@ -49,7 +50,7 @@ function Batter({evt, ...props}: UpdateProps & TagProps & TextProps) {
         return <Text as="span" {...props} />;
         
     return <Tag size="sm" pr={2} {...props}>
-        <FixedEmoji w={4} mr={2}>{team.emoji}</FixedEmoji>
+        <FixedEmoji w={4} mr={2}>{toEmoji(team.emoji)}</FixedEmoji>
         <Text {...props}>{team.batterName}</Text>
     </Tag> 
 }
