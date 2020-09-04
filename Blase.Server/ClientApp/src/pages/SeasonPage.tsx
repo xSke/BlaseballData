@@ -49,6 +49,7 @@ export function SeasonPage() {
                 hasMore={lastDay > 0}
                 loader={<Loading />} 
                 dataLength={days.length}
+                scrollThreshold="500px"
             >
                 {days.map(({games, season, day}) => {
                     return <DayTable key={day} season={season} day={day + 1} games={games}/>;
