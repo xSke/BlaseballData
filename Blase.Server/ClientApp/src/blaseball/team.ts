@@ -16,7 +16,7 @@ export function getBattingTeam(evt: GamePayload): TeamInfo {
 }
 
 export function getPitchingTeam(evt: GamePayload): TeamInfo {
-    return evt.topOfInning ? getTeam(evt, "away") : getTeam(evt, "home");
+    return evt.topOfInning ? getTeam(evt, "home") : getTeam(evt, "away");
 }
 
 export function getTeam(evt: GamePayload, team: "home" | "away"): TeamInfo {

@@ -107,7 +107,7 @@ function Events({game, ...props}: GameProps & BoxProps) {
     </Stack>
 }
 
-function GameItem({game}: { game: Game }) {
+const GameItem = React.memo(function GameItem({game}: { game: Game }) {
     return <Grid
         autoFlow="row dense"
         columnGap={2}
@@ -123,7 +123,9 @@ function GameItem({game}: { game: Game }) {
 
         <Box display={{base: "none", sm: "inline"}} gridColumn={{sm: 3}}><small>vs.</small></Box>
     </Grid>
-}
+}, (oldProps, newProps) => {
+    return oldProps.game.id == newProps.game.id && oldProps.game.lastUpdateTime == newProps.game.lastUpdateTime;
+});
 
 interface DayTableProps {
     games: Game[];
@@ -131,7 +133,7 @@ interface DayTableProps {
     day: number;
 }
 
-export function DayTable(props: DayTableProps) {
+export const DayTable = function DayTable(props: DayTableProps) {
     return (
         <Box mt={4} mb={8}>
             <Heading size="md">Season <strong>{props.season}</strong>, Day <strong>{props.day}</strong></Heading>
@@ -141,4 +143,4 @@ export function DayTable(props: DayTableProps) {
             </Stack>
         </Box>
     )
-}
+};

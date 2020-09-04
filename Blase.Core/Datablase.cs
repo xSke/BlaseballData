@@ -27,6 +27,10 @@ namespace Blase.Core
             _games = _db.GetCollection<Game>("games2");
             _gameUpdates = _db.GetCollection<GameUpdate>("gameupdates2");
             _rawUpdates = _db.GetCollection<RawUpdate>("rawupdates2");
+
+            _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: 1, day: 1 }"));
+            _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: -1, day: -1 }"));
+            _gameUpdates.Indexes.CreateOne(new CreateIndexModel<GameUpdate>("{ game: 1, firstSeen: 1 }"));
         }
         public async Task WriteGameSummaries(IReadOnlyCollection<GameUpdate> updates)
         {
@@ -121,7 +125,8 @@ namespace Blase.Core
                 filter,
                 new FindOptions<GameUpdate>
                 {
-                    Sort = Builders<GameUpdate>.Sort.Ascending(u => u.FirstSeen)
+                    Sort = Builders<GameUpdate>.Sort.Ascending(u => u.FirstSeen),
+                    BatchSize = 25
                 }
             ).ToAsyncEnumerable();
         }

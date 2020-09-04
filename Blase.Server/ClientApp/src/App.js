@@ -1,10 +1,10 @@
-import React, {Component} from 'react';
+import React from 'react';
 import {Route, Switch} from 'react-router';
 import {PageLayout} from './PageLayout';
 import {SWRConfig} from 'swr'
 import {GamePage} from "./pages/GamePage";
-// import {DayPage} from "./pages/DayPage";
 import {SeasonPage} from "./pages/SeasonPage";
+import {Home} from "./pages/Home";
 
 export default function App() {
     return (
@@ -12,8 +12,8 @@ export default function App() {
             <PageLayout>
                 <Switch>
                     <Route path='/game/:gameId' component={GamePage}/>
-                    {/* <Route path='/season/:season/day/:day' component={DayPage}/> */}
                     <Route path='/season/:season' component={SeasonPage}/>
+                    <Route path='/' component={Home} />
                 </Switch>
             </PageLayout>
         </SWRConfig>
