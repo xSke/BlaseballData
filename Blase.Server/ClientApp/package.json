@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "@chakra-ui/core": "^1.0.0-rc.3",
-    "moment": "^2.27.0",
+    "dayjs": "^1.8.35",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "react-infinite-scroll-component": "^5.0.5",

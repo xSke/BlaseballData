@@ -68,10 +68,6 @@ export function useGameUpdates(game: string, autoRefresh: boolean): GameUpdatesH
 
     const { data: pages, size, setSize, mutate, error } =
         useSWRInfinite<GameUpdatesResponse>(getNextPage,  {revalidateOnFocus: false});
-    
-    console.log("got page count: ", pages?.length);
-    if (pages)
-        console.log("last page: ", pages[pages.length-1].updates.length);
 
     // Flatten pages to update list
     const updates = [];

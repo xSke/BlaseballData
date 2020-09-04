@@ -1,5 +1,4 @@
-﻿import moment from "moment";
-import {Link as RouterLink} from "react-router-dom";
+﻿import {Link as RouterLink} from "react-router-dom";
 import React from "react";
 import {
     Box,
@@ -24,6 +23,7 @@ import {getWeather} from "../blaseball/weather";
 import {getTeam, TeamInfo} from "../blaseball/team";
 import {toEmoji} from "../blaseball/util";
 import {getOutcomes} from "../blaseball/outcome";
+import dayjs from "dayjs";
 
 interface GameProps {
     game: Game;
@@ -63,12 +63,14 @@ function Score({game, fixed, ...props}: { fixed: boolean } & GameProps & LinkPro
 
 function Duration({game, ...props}: GameProps & ButtonProps) {
     let content = "LIVE";
-    if (game.end) {
-        const startMoment = moment(game.start);
-        const endMoment = moment(game.end);
+    if (game.start && game.end) {
+        const startMoment = dayjs(game.start);
+        const endMoment = dayjs(game.end);
         const diff = endMoment.diff(startMoment);
 
-        content = moment.utc(diff).format("H:mm:ss");
+        content = dayjs()
+            .hour(0).minute(0).second(0)
+            .millisecond(diff).format("H:mm:ss");
     }
 
     return <Button variant="ghost" w={16} size="xs" as={RouterLink} to={`/game/${game.id}`} {...props}>

@@ -35,34 +35,40 @@ interface GameUpdateListProps extends StackProps {
 }
 
 // Need these wrappers due to UpdateRow memoization, setting display on there breaks & just excluding is bad for perf
-const hideWrap = (hide: boolean, elem: ReactNode) => <div style={{display: hide ? "none" : "block"}}>{elem}</div>
+const HideWrapper = (props: {hide?: boolean, children: ReactNode}) => {
+    return <div style={{display: props.hide ? "none" : "block"}}>{props.children}</div>;
+};
+
+type Element = { type: "row", update: GameUpdate, hide: boolean } | { type: "heading", update: GameUpdate, inning: number, top: boolean, hide: boolean };
 
 export function GameUpdateList({updates, updateOrder, filterImportant, ...props}: GameUpdateListProps) {
     if (updateOrder == "desc")
         updates.reverse();
 
-    const elements: ReactNode[] = [];
+    const elements: Element[] = [];
 
     let lastPayload = null, lastHeader = null, anyVisibleRowsThisInning = false;
     for (const update of updates) {
         const payload = update.payload;
         
         const shouldHide = filterImportant && !isImportant(payload);
-        const row = hideWrap(shouldHide, <UpdateRow key={update.id} update={update} />);
-
+        const row: Element = {type: "row", update, hide: shouldHide};
+        
         if (!lastPayload || lastPayload.inning != payload.inning || lastPayload.topOfInning != payload.topOfInning) {
             // Hide the previous header if the entire inning had no visible rows
             if (lastHeader != null && !anyVisibleRowsThisInning) {
-                const idx = elements.indexOf(lastHeader);
-                elements[idx] = hideWrap(true, lastHeader);
+                lastHeader.hide = true;
             }
             
             // New inning, add header
-            const header = <InningHeader key={update.id + "_header"} evt={payload} pt={4}/>;
+            const header: Element = { type: "heading", inning: payload.inning, top: payload.topOfInning, hide: false, update };
             if (updateOrder == "desc") {
                 // Inning properly started *before* this row, so put the header before the *previous* entry
                 const last = elements.pop();
-                elements.push(header, last, row);
+                
+                elements.push(header);
+                if (last) elements.push(last);
+                elements.push(row);
             } else if (lastPayload != null) {
                 // Inning properly starts *after* this row (but only if this isn't the *actual first* entry
                 elements.push(row, header);
@@ -84,6 +90,11 @@ export function GameUpdateList({updates, updateOrder, filterImportant, ...props}
     }
 
     return <Flex direction="column" {...props}>
-        {elements}
+        {elements.map(e => {
+            if (e.type === "row")
+                return <HideWrapper key={e.update.id} hide={e.hide}><UpdateRow update={e.update} /></HideWrapper>;
+            else
+                return <HideWrapper key={e.update.id + "_header"} hide={e.hide}><InningHeader evt={e.update.payload} pt={4}/></HideWrapper>
+        })}
     </Flex>;
 }
