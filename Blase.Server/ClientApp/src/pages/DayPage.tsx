@@ -1,7 +1,7 @@
 ﻿import {useParams} from "react-router";
 import React from 'react';
 import useSWR from "swr";
-import {Game, GamesResponse} from "../data";
+import {GamesResponse} from "../blaseball/api";
 
 import {DayTable} from "../components/DayTable";
 import {Container} from "../components/Container";

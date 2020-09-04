@@ -1,43 +1,67 @@
-﻿import { Game, toEmoji, weather } from "../data";
-import moment from "moment";
-import { Link as RouterLink } from "react-router-dom";
+﻿import moment from "moment";
+import {Link as RouterLink} from "react-router-dom";
 import React from "react";
-import { Link, Text, Heading, Stack, StackDivider, Flex, Tooltip, Box, Tag, Button, Spacer, Center, Grid, TooltipProps, ButtonProps, LinkProps, FlexProps, BoxProps } from "@chakra-ui/core";
-import { FixedEmoji } from "./FixedEmoji";
+import {
+    Box,
+    BoxProps,
+    Button,
+    ButtonProps,
+    Flex,
+    FlexProps,
+    Grid,
+    Heading,
+    Link,
+    LinkProps,
+    Stack,
+    StackDivider,
+    Tag,
+    Text,
+    Tooltip
+} from "@chakra-ui/core";
+import {FixedEmoji} from "./FixedEmoji";
+import {Game} from "../blaseball/game";
+import {getWeather} from "../blaseball/weather";
+import {getTeam, TeamInfo} from "../blaseball/team";
+import {toEmoji} from "../blaseball/util";
+import {getOutcomes} from "../blaseball/outcome";
 
-function Weather({game, ...props}: {game: Game} & BoxProps) {
-    const info = weather[game.lastUpdate.weather];
-    if (info) {
-        return (
-            <Tooltip label={info.name}>
-                <Box {...props}>
-                    <FixedEmoji>{info.emoji}</FixedEmoji>
-                </Box>
-            </Tooltip>
-        );
-    }
-    return <>{game.lastUpdate.weather}</>
+interface GameProps {
+    game: Game;
 }
 
-function Score({game, fixed, ...props}: {game: Game, fixed: boolean} & LinkProps) {
-    let color = "green";
+function Weather({game, ...props}: GameProps & BoxProps) {
+    const weather = getWeather(game.lastUpdate);
+    if (!weather)
+        return <>{game.lastUpdate.weather}</>;
+    
+    return (
+        <Tooltip label={weather.name}>
+            <Box {...props}>
+                <FixedEmoji>{weather.emoji}</FixedEmoji>
+            </Box>
+        </Tooltip>
+    );
+}
 
+function Score({game, fixed, ...props}: { fixed: boolean } & GameProps & LinkProps) {
+    const evt = game.lastUpdate;
+    
+    let color = "green";
     if (game.lastUpdate.gameComplete)
         color = "gray";
-
     if (game.lastUpdate.shame)
         color = "purple";
 
     return (
         <Link as={RouterLink} to={`/game/${game.id}`} {...props}>
             <Tag colorScheme={color} fontWeight="semibold" justifyContent="center" w={fixed ? 16 : undefined}>
-                {`${game.lastUpdate.awayScore} - ${game.lastUpdate.homeScore}`}
+                {`${evt.awayScore} - ${evt.homeScore}`}
             </Tag>
         </Link>
     )
 }
 
-function Duration({game, ...props}: {game: Game} & ButtonProps) {
+function Duration({game, ...props}: GameProps & ButtonProps) {
     let content = "LIVE";
     if (game.end) {
         const startMoment = moment(game.start);
@@ -52,76 +76,50 @@ function Duration({game, ...props}: {game: Game} & ButtonProps) {
     </Button>;
 }
 
-function Team(type: "home" | "away") {
-    return (props: {game: Game} & FlexProps) => {
-        const evt = props.game.lastUpdate;
-        
-        const ourScore = type === "home" ? evt.homeScore : evt.awayScore;
-        const ourEmoji = type === "home" ? evt.homeTeamEmoji : evt.awayTeamEmoji;
-        const ourNickname = type === "home" ? evt.homeTeamNickname : evt.awayTeamNickname;
-        const otherScore = type === "home" ? evt.awayScore : evt.homeScore;
-        
-        const weight = ourScore > otherScore ? "semibold" : "normal";
-        return (
-            <Flex fontWeight={weight} {...props}>
-                <FixedEmoji>{toEmoji(ourEmoji)}</FixedEmoji>
-                <Box w={1} />
-                <Text as="span">{ourNickname}</Text>
-            </Flex>
-        )
-    }
+function Team({team, otherTeam, ...props}: {team: TeamInfo, otherTeam: TeamInfo} & FlexProps) {
+    const weight = team.score > otherTeam.score ? "semibold" : "normal";
+    return (
+        <Flex fontWeight={weight} {...props}>
+            <FixedEmoji>{toEmoji(team.emoji)}</FixedEmoji>
+            <Box w={1}/>
+            <Text as="span">{team.nickname}</Text>
+        </Flex>
+    );
 }
 
-const AwayTeam = Team("away" );
-const HomeTeam = Team("home");
+const AwayTeam = ({game, ...props}: GameProps & FlexProps) => 
+    <Team team={getTeam(game.lastUpdate, "away")} otherTeam={getTeam(game.lastUpdate, "home")} {...props} />
 
-interface GameOutcomeEvent {
-    emoji: string;
-    name: string;
-}
+const HomeTeam = ({game, ...props}: GameProps & FlexProps) =>
+    <Team team={getTeam(game.lastUpdate, "home")} otherTeam={getTeam(game.lastUpdate, "away")} {...props} />
 
-function Events({game, ...props}: {game: Game} & BoxProps) {
-    let types: Record<string, GameOutcomeEvent> = {
-        "reverb": { emoji: "\u{1F30A}", name: "Reverb" },
-        "feedback": { emoji: "\u{1F3A4}", name: "Feedback" },
-        "umpire": { emoji: "\u{1F525}", name: "Incineration" },
-        "peanut": { emoji: "\u{1F95C}", name: "Peanut" },
-    }
-
-    const elems = [];
-    for (const outcomeText of game.lastUpdate.outcomes) {
-        for (const searchKey of Object.keys(types)) {
-            const type = types[searchKey];
-
-            if (outcomeText.toLowerCase().indexOf(searchKey) > -1) {
-                const elem = <Tooltip label={outcomeText} {...props}>
-                    <Tag size="md">{type.emoji} {type.name}</Tag>
-                </Tooltip>;
-
-                elems.push(elem);
-            }
-        }
-    }
-
-    if (elems)
-        return <Stack direction="row" spacing={2} as="span" {...props}>{elems}</Stack>;
-    else
+function Events({game, ...props}: GameProps & BoxProps) {
+    const outcomes = getOutcomes(game.lastUpdate);
+    if (!outcomes)
         return <></>;
+    
+    return <Stack direction="row" spacing={2} as="span" {...props}>
+        {outcomes.map(outcome => (
+            <Tooltip label={outcome.text}>
+                <Tag size="md">{outcome.emoji} {outcome.name}</Tag>
+            </Tooltip>
+        ))}
+    </Stack>
 }
 
-function GameItem({game}: {game: Game}) {
+function GameItem({game}: { game: Game }) {
     return <Grid
         autoFlow="row dense"
         columnGap={2}
         templateColumns={{base: "1fr auto auto", sm: "auto auto auto auto 1fr auto auto auto auto"}}
     >
-        <AwayTeam game={game} gridColumn={{base: 1, sm: 2}} direction="row" />
-        <Weather game={game} gridColumn={{base: 2, sm: 7}} justifySelf="end" />
-        <Score game={game} fixed={true} gridColumn={{base: 3, sm: 1}} />
+        <AwayTeam game={game} gridColumn={{base: 1, sm: 2}} direction="row"/>
+        <Weather game={game} gridColumn={{base: 2, sm: 7}} justifySelf="end"/>
+        <Score game={game} fixed={true} gridColumn={{base: 3, sm: 1}}/>
 
-        <HomeTeam game={game} gridColumn={{base: 1, sm: 4}} direction={{base: "row", sm: "row-reverse"}} />
-        <Events game={game} gridColumn={{base: 2, sm: 6}} />
-        <Duration game={game} gridColumn={{base: 3, sm: 8}} />
+        <HomeTeam game={game} gridColumn={{base: 1, sm: 4}} direction={{base: "row", sm: "row-reverse"}}/>
+        <Events game={game} gridColumn={{base: 2, sm: 6}}/>
+        <Duration game={game} gridColumn={{base: 3, sm: 8}}/>
 
         <Box display={{base: "none", sm: "inline"}} gridColumn={{sm: 3}}><small>vs.</small></Box>
     </Grid>
@@ -138,8 +136,8 @@ export function DayTable(props: DayTableProps) {
         <Box mt={4} mb={8}>
             <Heading size="md">Season <strong>{props.season}</strong>, Day <strong>{props.day}</strong></Heading>
 
-            <Stack my={4} spacing={2} divider={<StackDivider borderColor="gray.200" />}>
-                {props.games.map(game => <GameItem key={game.id} game={game} />)}
+            <Stack my={4} spacing={2} divider={<StackDivider borderColor="gray.200"/>}>
+                {props.games.map(game => <GameItem key={game.id} game={game}/>)}
             </Stack>
         </Box>
     )
