@@ -25,7 +25,7 @@ namespace Blase.Server.Controllers
         [Route("games")]
         public async Task<GameListResponse> ListGames([Required, FromQuery] GameQueryFilter filter)
         {
-            var days = _db.GetGamesByDay(filter.Season, filter.Day ?? 0);
+            var days = _db.GetGamesByDay(filter.Season, filter.Day, filter.Reverse);
 
             if (filter.DayCount != null)
                 days = days.Take(filter.DayCount.Value);

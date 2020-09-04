@@ -134,10 +134,19 @@ namespace Blase.Core
             public DateTimeOffset? Start;
         }
 
-        public IAsyncEnumerable<GameDay> GetGamesByDay(int season, int dayStart)
+        public IAsyncEnumerable<GameDay> GetGamesByDay(int season, int dayStart, bool reverse)
         {
+            var filter = reverse
+                ? Builders<Game>.Filter.Lte(x => x.Day, dayStart)
+                : Builders<Game>.Filter.Gte(x => x.Day, dayStart);
+            filter &= Builders<Game>.Filter.Eq(x => x.Season, season);
+            
+            var sort = reverse
+                ? Builders<GameDay>.Sort.Descending(x => x.Season).Descending(x => x.Day)
+                : Builders<GameDay>.Sort.Ascending(x => x.Season).Ascending(x => x.Day);
+            
             return _games.Aggregate()
-                .Match(x => x.Season == season && x.Day >= dayStart)
+                .Match(filter)
                 .Group(@"{
                     _id: {
                         Season: '$season',
@@ -149,7 +158,7 @@ namespace Blase.Core
                     Start: {$min: '$start'}
                 }")
                 .AppendStage<GameDay>("{$unset: '_id'}")
-                .Sort(Builders<GameDay>.Sort.Ascending(x => x.Season).Ascending(x => x.Day))
+                .Sort(sort)
                 .ToCursorAsync()
                 .ToAsyncEnumerable();
         }
