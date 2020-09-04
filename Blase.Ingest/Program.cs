@@ -118,7 +118,7 @@ namespace Blase.Ingest
         
         private static async Task IngestFromStream(Datablase db)
         {
-            async void Callback(string obj)
+            async Task Callback(string obj)
             {
                 var timestamp = DateTimeOffset.UtcNow;
 
@@ -143,7 +143,17 @@ namespace Blase.Ingest
             }
 
             var stream = new EventStream(new HttpClient(), Log.Logger);
-            await stream.Stream("https://www.blaseball.com/events/streamData", Callback);
+            await stream.Stream("https://www.blaseball.com/events/streamData", async obj =>
+            {
+                try
+                {
+                    await Callback(obj);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing stream line");
+                }
+            });
         }
     }
 }
