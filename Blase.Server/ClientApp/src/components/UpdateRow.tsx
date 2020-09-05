@@ -23,7 +23,8 @@ function Timestamp({update, ...props}: WrappedUpdateProps & TextProps) {
 }
 
 function Score({evt, ...props}: UpdateProps & TagProps) {
-    return <Tag fontWeight="semibold" {...props}>
+    const color = evt.shame ? "purple" : "gray";
+    return <Tag fontWeight="semibold" colorScheme={color} {...props}>
         {evt.awayScore} - {evt.homeScore}
     </Tag>;
 }
