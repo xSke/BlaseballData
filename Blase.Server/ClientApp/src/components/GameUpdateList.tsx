@@ -81,7 +81,7 @@ function groupByInning(updates: GameUpdate[], direction: "asc" | "desc", filterI
 
 export function GameUpdateList({updates, updateOrder, filterImportant, ...props}: GameUpdateListProps) {
     if (updateOrder == "desc")
-        updates.reverse();
+        updates = [...updates].reverse();
     
     const elements = useMemo(() => groupByInning(updates, updateOrder, filterImportant), [updates, updateOrder, filterImportant]);
     
