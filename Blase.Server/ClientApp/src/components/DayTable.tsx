@@ -15,7 +15,8 @@ import {
     StackDivider,
     Tag,
     Text,
-    Tooltip
+    Tooltip,
+    TextProps
 } from "@chakra-ui/core";
 import {FixedEmoji} from "./FixedEmoji";
 import {Game} from "../blaseball/game";
@@ -59,6 +60,13 @@ function Score({game, fixed, ...props}: { fixed: boolean } & GameProps & LinkPro
             </Tag>
         </Link>
     )
+}
+
+function Inning({game, ...props}: GameProps & TextProps) {
+    const arrow = game.lastUpdate.topOfInning ? "\u25B2" : "\u25BC";
+    return <Text as="span" fontSize={{base: "xs", md: "sm"}} fontWeight="semibold" width={8} textAlign="right" lineHeight="1.5rem" mr={1} {...props}>
+        {game.lastUpdate.inning+1} {arrow}
+    </Text>
 }
 
 function Duration({game, ...props}: GameProps & ButtonProps) {
@@ -113,17 +121,18 @@ const GameItem = React.memo(function GameItem({game}: { game: Game }) {
     return <Grid
         autoFlow="row dense"
         columnGap={2}
-        templateColumns={{base: "1fr auto auto", sm: "auto auto auto auto 1fr auto auto auto auto"}}
+        templateColumns={{base: "1fr auto auto auto", md: "auto auto auto auto auto 1fr auto auto auto auto"}}
     >
-        <AwayTeam game={game} gridColumn={{base: 1, sm: 2}} direction="row"/>
-        <Weather game={game} gridColumn={{base: 2, sm: 7}} justifySelf="end"/>
-        <Score game={game} fixed={true} gridColumn={{base: 3, sm: 1}}/>
+        <AwayTeam game={game} gridColumn={{base: 1, md: 3}} direction="row"/>
+        <Score game={game} fixed={true} gridColumn={{base: 4, md: 2}}/>
+        <Weather game={game} gridColumn={{base: 3, md: 8}} justifySelf="end"/>
 
-        <HomeTeam game={game} gridColumn={{base: 1, sm: 4}} direction={{base: "row", sm: "row-reverse"}}/>
-        <Events game={game} gridColumn={{base: 2, sm: 6}}/>
-        <Duration game={game} gridColumn={{base: 3, sm: 8}}/>
+        <HomeTeam game={game} gridColumn={{base: 1, md: 5}} direction={{base: "row", md: "row-reverse"}}/>
+        <Events game={game} gridColumn={{base: 2, md: 7}}/>
+        <Duration game={game} gridColumn={{base: 4, md: 9}}/>
+        <Inning game={game} gridColumn={{base: 3, md: 1}} justifySelf="end"/>
 
-        <Box display={{base: "none", sm: "inline"}} gridColumn={{sm: 3}}><small>vs.</small></Box>
+        <Box display={{base: "none", md: "inline"}} gridColumn={{md: 4}}><small>vs.</small></Box>
     </Grid>
 }, (oldProps, newProps) => {
     return oldProps.game.id == newProps.game.id && oldProps.game.lastUpdateTime == newProps.game.lastUpdateTime;
