@@ -111,7 +111,7 @@ function Events({game, ...props}: GameProps & BoxProps) {
     return <Stack direction="row" spacing={2} as="span" {...props}>
         {outcomes.map((outcome, idx) => (
             <Tooltip label={outcome.text} key={idx}>
-                <Tag size="md">{outcome.emoji} {outcome.name}</Tag>
+                <Tag size="md" colorScheme={outcome.color}>{outcome.emoji} {outcome.name}</Tag>
             </Tooltip>
         ))}
     </Stack>

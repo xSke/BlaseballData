@@ -4,19 +4,21 @@ interface Outcome {
     name: string;
     emoji: string;
     text: string;
+    color: string;
 }
 
 interface OutcomeType {
     name: string;
     emoji: string;
     search: RegExp[];
+    color: string;
 }
 
 export const outcomeTypes: OutcomeType[] = [
-    {name: "Reverb", emoji: "\u{1F30A}", search: [/reverb/gi]},
-    {name: "Feedback", emoji: "\u{1F3A4}", search: [/feedback/gi]},
-    {name: "Incineration", emoji: "\u{1F525}", search: [/rogue umpire/gi]},
-    {name: "Peanut", emoji: "\u{1F95C}", search: [/peanut/gi]},
+    {name: "Reverb", emoji: "\u{1F30A}", search: [/reverb/gi], color: "blue"},
+    {name: "Feedback", emoji: "\u{1F3A4}", search: [/feedback/gi], color: "pink"},
+    {name: "Incineration", emoji: "\u{1F525}", search: [/rogue umpire/gi], color: "orange"},
+    {name: "Peanut", emoji: "\u{1F95C}", search: [/peanut/gi], color: "orange"},
 ]
 
 export function getOutcomes(evt: GamePayload): Outcome[] {
