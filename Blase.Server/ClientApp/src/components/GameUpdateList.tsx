@@ -1,6 +1,6 @@
 ﻿import {GamePayload, GameUpdate, isImportant} from "../blaseball/update";
-import {Box, BoxProps, Heading, Flex, StackProps, Text, TextProps} from "@chakra-ui/core";
-import React, {ReactNode, useEffect, useMemo} from "react";
+import {Box, BoxProps, Heading, StackProps, Text, TextProps} from "@chakra-ui/core";
+import React, {useMemo} from "react";
 import {UpdateRow} from "./UpdateRow";
 import {getPitchingTeam} from "../blaseball/team";
 import {List, WindowScroller, AutoSizer, CellMeasurerCache, CellMeasurer, ListRowRenderer} from "react-virtualized";
