@@ -49,7 +49,7 @@ export function isImportant(evt: GamePayload): boolean {
         /Rogue Umpire/g,
         /feedback/g,
         /Reverb/g,
-        /peanut reaction/g
+        /(yummy|allergic) reaction/g,
     ];
 
     for (const regex of importantMessages)
