@@ -3,7 +3,7 @@ import {useParams} from 'react-router';
 
 import {Loading} from '../components/Loading';
 import {Container} from '../components/Container';
-import {Alert, AlertIcon, Checkbox, Flex, Heading, Stack, Text} from '@chakra-ui/core';
+import {Alert, AlertIcon, Checkbox, Flex, Heading, Spinner, Stack, Text} from '@chakra-ui/core';
 import {useGameUpdates} from "../blaseball/api";
 import {GameUpdateList} from "../components/GameUpdateList";
 import {GameUpdate} from "../blaseball/update";
@@ -19,10 +19,9 @@ interface UpdatesListFetchingProps {
 
 function UpdatesListFetching(props: UpdatesListFetchingProps) {
     return (
-        <Flex mt={2} direction={props.order == "asc" ? "column" : "column-reverse"}>
+        <Flex mt={2} direction="column">
+            {props.autoRefresh && <Text mt={2} as="em" textAlign="center" color="gray.600"><Spinner mr={2} size="xs" /> Live-updating...</Text>}
             <GameUpdateList updates={props.updates} updateOrder={props.order} filterImportant={props.filterImportant}/>
-
-            {props.autoRefresh && <Text my={4} textAlign="center" color="gray.600">Live-updating...</Text>}
             {props.isLoading && <Loading />}
         </Flex>
     );
@@ -37,6 +36,9 @@ export function GamePage() {
     const [reverse, setReverse] = useState(false);
     const [autoUpdate, setAutoUpdate] = useState(false);
     const [onlyImportant, setOnlyImportant] = useState(false);
+    
+    if (autoUpdate && !reverse)
+        setReverse(true);
 
     const {updates, error, isLoading} = useGameUpdates(gameId, autoUpdate);
     if (error) return <Alert><AlertIcon/>{error.toString()}</Alert>;

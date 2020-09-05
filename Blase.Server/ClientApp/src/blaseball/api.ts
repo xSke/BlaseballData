@@ -1,7 +1,7 @@
 import { GameUpdate } from "./update";
 import { Day } from "./game";
-import {useSWRInfinite} from "swr";
-import {useEffect} from "react";
+import useSWR, {useSWRInfinite} from "swr";
+import {useEffect, useState} from "react";
 
 export interface GamesResponse {
     days: Day[]
@@ -50,61 +50,40 @@ interface GameUpdatesHookReturn {
 }
 
 export function useGameUpdates(game: string, autoRefresh: boolean): GameUpdatesHookReturn {
-    const pageSize = 100;
+    // First load of original data
+    const { data: initialData, error } = useSWR<GameUpdatesResponse>(`/api/games/${game}/updates`,  {revalidateOnFocus: false});
     
-    // Use faux-pagination, where every "page" (after the first few) is just the updates since the last one
-    function getNextPage(pageIndex: number, previousPageData: GameUpdatesResponse | null) {
-        if (!previousPageData)
-            // First page, fetch all updates so far
-            return `/api/games/${game}/updates?count=${pageSize}`;
-
-        const lastUpdate = previousPageData.updates[previousPageData.updates.length - 1];
-        if (lastUpdate.payload.gameComplete)
-            // If the game's over, there's no more data
-            return null;
-
-        return `/api/games/${game}/updates?after=${encodeURIComponent(lastUpdate.timestamp)}&count=${pageSize}`;
-    }
-
-    const { data: pages, size, setSize, mutate, error } =
-        useSWRInfinite<GameUpdatesResponse>(getNextPage,  {revalidateOnFocus: false});
-
-    // Flatten pages to update list
-    const updates = [];
-    for (const page of (pages ?? []))
-        updates.push(...page.updates);
+    // Updates added via autoupdating
+    const [extraUpdates, setExtraUpdates] = useState<GameUpdate[]>([]);
     
-    // Handle chunking logic; if we're not "at the end", bump page
-    const hasMorePages = (pages != undefined)     
-        && pages[pages.length-1].updates.length > 0
-        && !updates[updates.length-1].payload.gameComplete;
-    const shouldLoadNextPage = pages?.length == size && hasMorePages;
-
-    // Handle autorefresh logic when we're at the end of the available data
-    const shouldQueueRefresh = autoRefresh && pages && pages[pages.length-1].updates.length == 0;
+    // Combined the above!
+    const allUpdates = [...(initialData?.updates ?? []), ...extraUpdates];
     
-    async function doRefreshLastPage() {
-        // Cut the last page off from the internal cache
-        await mutate(pages => {
-            pages.pop();
-            return pages;
-        }, false);
-
-        // This is needed to "poke" it into refetching for some reason
-        setSize(size);
-    }
-    
-    // All delayed stuff take place in an effect
+    // Background timer for autoupdating
     useEffect(() => {
-        if (shouldQueueRefresh)
-            setTimeout(doRefreshLastPage, 2000);
-        if (shouldLoadNextPage)
-            setTimeout(() => setSize(size + 1), 2000);
-    }, [shouldLoadNextPage, shouldQueueRefresh]);
-
+        const timer = setInterval(async () => {
+            // Stop if autorefresh is off
+            // (effect closure will get remade on change so this "updates" properly)
+            if (!autoRefresh || allUpdates.length == 0)
+                return;
+            
+            // Handle autorefresh logic
+            const lastUpdate = allUpdates[allUpdates.length - 1];
+            const lastTimestamp = lastUpdate.timestamp;
+            
+            const url = `/api/games/${game}/updates?after=${encodeURIComponent(lastTimestamp)}`;
+            const response = await fetch(url);
+            const json = <GameUpdatesResponse>(await response.json());
+            
+            // Add the data we got to the extra state :)
+            setExtraUpdates([...extraUpdates, ...json.updates])
+        }, 2000);
+        return () => clearInterval(timer);
+    }, [game, autoRefresh, allUpdates.length])
+    
     return {
-        updates: updates,
-        isLoading: !pages,
+        updates: allUpdates,
+        isLoading: !initialData,
         error
     }
 }
