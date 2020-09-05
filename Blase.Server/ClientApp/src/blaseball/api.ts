@@ -74,36 +74,37 @@ export function useGameUpdates(game: string, autoRefresh: boolean): GameUpdatesH
     for (const page of (pages ?? []))
         updates.push(...page.updates);
     
-    // Handle chunking logic; if we're not "at the end", bump page count after a timeout
+    // Handle chunking logic; if we're not "at the end", bump page
     const hasMorePages = (pages != undefined)     
         && pages[pages.length-1].updates.length > 0
         && !updates[updates.length-1].payload.gameComplete;
-    
     const shouldLoadNextPage = pages?.length == size && hasMorePages;
 
-    // Handle autorefresh logic
+    // Handle autorefresh logic when we're at the end of the available data
     const shouldQueueRefresh = autoRefresh && pages && pages[pages.length-1].updates.length == 0;
     
     async function doRefreshLastPage() {
-        // Cut the last page off, invalidating its cache and causing a refetch
-        const newPages = await mutate(pages => pages.slice(0, -1));
+        // Cut the last page off from the internal cache
+        await mutate(pages => {
+            pages.pop();
+            return pages;
+        }, false);
 
-        // If we got some data this time, bump to next page so we keep going :)
-        if (newPages![newPages!.length - 1].updates.length > 0)
-            setSize(size + 1);
+        // This is needed to "poke" it into refetching for some reason
+        setSize(size);
     }
     
     // All delayed stuff take place in an effect
     useEffect(() => {
         if (shouldQueueRefresh)
-            setTimeout(doRefreshLastPage, 1000);
+            setTimeout(doRefreshLastPage, 2000);
         if (shouldLoadNextPage)
-            setSize(size + 1);
+            setTimeout(() => setSize(size + 1), 2000);
     }, [shouldLoadNextPage, shouldQueueRefresh]);
 
     return {
         updates: updates,
-        isLoading: !pages || hasMorePages,
+        isLoading: !pages,
         error
     }
 }
