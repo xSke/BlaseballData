@@ -13,6 +13,7 @@ namespace Blase.Core
         private IMongoDatabase _db;
         private IMongoCollection<GameUpdate> _gameUpdates;
         private IMongoCollection<RawUpdate> _rawUpdates;
+        private IMongoCollection<IdolsUpdate> _idolUpdates;
         private IMongoCollection<Game> _games;
 
         public Datablase()
@@ -27,6 +28,7 @@ namespace Blase.Core
             _games = _db.GetCollection<Game>("games2");
             _gameUpdates = _db.GetCollection<GameUpdate>("gameupdates2");
             _rawUpdates = _db.GetCollection<RawUpdate>("rawupdates2");
+            _idolUpdates = _db.GetCollection<IdolsUpdate>("idols");
 
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: 1, day: 1 }"));
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: -1, day: -1 }"));
@@ -166,6 +168,31 @@ namespace Blase.Core
                 .Sort(sort)
                 .ToCursorAsync()
                 .ToAsyncEnumerable();
+        }
+
+        public IAsyncEnumerable<RawUpdate> GetRawUpdates(DateTimeOffset after, int? season = null)
+        {
+            var filter = Builders<RawUpdate>.Filter.Gt(x => x.FirstSeen, after);
+            if (season != null)
+                filter &= Builders<RawUpdate>.Filter.Eq("payload.value.games.sim.season", season);
+            
+            var sort = Builders<RawUpdate>.Sort.Ascending(x => x.FirstSeen);
+            return _rawUpdates.FindAsync(filter, new FindOptions<RawUpdate>
+                {
+                    Sort = sort,
+                })
+                .ToAsyncEnumerable();
+        }
+
+        public async Task WriteIdolsUpdate(IdolsUpdate update)
+        {
+            var filter = Builders<IdolsUpdate>.Filter.Eq(x => x.Id, update.Id);
+            
+            var model = Builders<IdolsUpdate>.Update
+                .SetOnInsert(x => x.Payload, update.Payload)
+                .Min(x => x.FirstSeen, update.FirstSeen)
+                .Max(x => x.LastSeen, update.LastSeen);
+            await _idolUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
         }
     }
 }

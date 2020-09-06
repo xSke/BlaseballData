@@ -118,6 +118,9 @@ namespace Blase.Ingest
         
         private static async Task IngestFromStream(Datablase db)
         {
+            // Fire and forget :)
+            var _ = IngestIdolData(db);
+            
             async Task Callback(string obj)
             {
                 var timestamp = DateTimeOffset.UtcNow;
@@ -154,6 +157,31 @@ namespace Blase.Ingest
                     Log.Error(e, "Error processing stream line");
                 }
             });
+        }
+
+        private static async Task IngestIdolData(Datablase db)
+        {
+            var client = new HttpClient();
+            
+            while (true)
+            {
+                try
+                {
+                    await using var resp = await client.GetStreamAsync("https://www.blaseball.com/api/getIdols");
+                    var timestamp = DateTimeOffset.UtcNow;
+                    var json = await JsonDocument.ParseAsync(resp);
+
+                    var update = new IdolsUpdate(timestamp, json.RootElement);
+                    await db.WriteIdolsUpdate(update);
+                    Log.Information("Saved idols update {PayloadHash} at {Timestamp}", update.Id, timestamp);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing idol data");
+                }
+
+                await Task.Delay(TimeSpan.FromMinutes(1));
+            }
         }
     }
 }
