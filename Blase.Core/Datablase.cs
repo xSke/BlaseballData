@@ -14,6 +14,8 @@ namespace Blase.Core
         private IMongoCollection<GameUpdate> _gameUpdates;
         private IMongoCollection<RawUpdate> _rawUpdates;
         private IMongoCollection<IdolsUpdate> _idolUpdates;
+        private IMongoCollection<TeamUpdate> _teamUpdates;
+        private IMongoCollection<PlayerUpdate> _playerUpdates;
         private IMongoCollection<Game> _games;
 
         public Datablase()
@@ -29,6 +31,8 @@ namespace Blase.Core
             _gameUpdates = _db.GetCollection<GameUpdate>("gameupdates2");
             _rawUpdates = _db.GetCollection<RawUpdate>("rawupdates2");
             _idolUpdates = _db.GetCollection<IdolsUpdate>("idols");
+            _teamUpdates = _db.GetCollection<TeamUpdate>("teams");
+            _playerUpdates = _db.GetCollection<PlayerUpdate>("players");
 
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: 1, day: 1 }"));
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: -1, day: -1 }"));
@@ -193,6 +197,36 @@ namespace Blase.Core
                 .Min(x => x.FirstSeen, update.FirstSeen)
                 .Max(x => x.LastSeen, update.LastSeen);
             await _idolUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
+        }
+
+        public async Task WriteTeamUpdates(TeamUpdate[] updates)
+        {
+            await _teamUpdates.BulkWriteAsync(updates.Select(update =>
+            {
+                var filter = Builders<TeamUpdate>.Filter.Eq(x => x.Id, update.Id);
+                var model = Builders<TeamUpdate>.Update
+                    .SetOnInsert(x => x.TeamId, update.TeamId)
+                    .SetOnInsert(x => x.Payload, update.Payload)
+                    .Min(x => x.FirstSeen, update.FirstSeen)
+                    .Max(x => x.LastSeen, update.LastSeen);
+                
+                return new UpdateOneModel<TeamUpdate>(filter, model) {IsUpsert = true};
+            }));
+        }
+        
+        public async Task WritePlayerUpdates(PlayerUpdate[] updates)
+        {
+            await _playerUpdates.BulkWriteAsync(updates.Select(update =>
+            {
+                var filter = Builders<PlayerUpdate>.Filter.Eq(x => x.Id, update.Id);
+                var model = Builders<PlayerUpdate>.Update
+                    .SetOnInsert(x => x.PlayerId, update.PlayerId)
+                    .SetOnInsert(x => x.Payload, update.Payload)
+                    .Min(x => x.FirstSeen, update.FirstSeen)
+                    .Max(x => x.LastSeen, update.LastSeen);
+                
+                return new UpdateOneModel<PlayerUpdate>(filter, model) {IsUpsert = true};
+            }));
         }
     }
 }

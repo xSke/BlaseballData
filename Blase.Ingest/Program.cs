@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -15,17 +14,183 @@ namespace Blase.Ingest
         static async Task Main(string[] args)
         {
             BlaseCore.Init();
-            
-            var db = new Datablase();
+            await new Program().Run();
+        }
+        
+        private readonly Datablase _db;
+        private readonly HttpClient _client;
+        private TeamUpdate[] _lastTeams;
+        
+        public Program()
+        {
+            _db = new Datablase();
+            _client = new HttpClient();
+        }
+        
+        public async Task Run()
+        {
+            var streamTask = StreamDataIngestWorker();
+            var idolTask = IdolDataIngestWorker();
+            var playerTask = PlayerDataIngestWorker();
+            await Task.WhenAll(streamTask, idolTask, playerTask);
+        }
+        
 
-            if (args.Length == 0 || args[0] == "stream")
-                await IngestFromStream(db);
-            else if (args[0] == "dir")
-                await IngestFromFile(args[1], db);
-            else if (args[0] == "reindex")
-                await db.UpdateGameIndex();
-            else
-                Log.Error("Unknown command {Cmd}", args[0]);
+        private async Task StreamDataIngestWorker()
+        {
+            async Task Callback(string obj)
+            {
+                var timestamp = DateTimeOffset.UtcNow;
+
+                var doc = JsonDocument.Parse(obj);
+                await SaveRawPayload(timestamp, doc);
+                await SaveGamesPayload(timestamp, doc);
+                await SaveTeamsPayload(timestamp, doc);
+            }
+
+            var stream = new EventStream(_client, Log.Logger);
+            await stream.Stream("https://www.blaseball.com/events/streamData", async obj =>
+            {
+                try
+                {
+                    await Callback(obj);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing stream line");
+                }
+            });
+        }
+
+        private async Task SaveTeamsPayload(DateTimeOffset timestamp, JsonDocument doc)
+        {
+            var teams = ExtractTeams(doc.RootElement);
+            if (teams == null)
+                return;
+
+            var updates = teams.Value.EnumerateArray()
+                .Select(u => new TeamUpdate(timestamp, u))
+                .ToArray();
+
+            await _db.WriteTeamUpdates(updates);
+            Log.Information("Saved {TeamCount} teams at {Timestamp}", updates.Length, timestamp);
+            _lastTeams = updates;
+        }
+        private async Task SaveGamesPayload(DateTimeOffset timestamp, JsonDocument doc)
+        {
+            var scheduleElem = ExtractSchedule(doc.RootElement);
+            if (scheduleElem == null)
+                return;
+
+            var games = scheduleElem.Value.EnumerateArray()
+                .Select(u => ParseUpdate(timestamp, u))
+                .Where(u => u != null)
+                .ToArray();
+
+            await _db.WriteGameUpdates(games);
+            await _db.WriteGameSummaries(games);
+            foreach (var gameUpdate in games)
+                Log.Information("Saved game update {PayloadHash} (game {GameId})", gameUpdate.Id, gameUpdate.GameId);
+        }
+
+        private async Task SaveRawPayload(DateTimeOffset timestamp, JsonDocument doc)
+        {
+            var update = new RawUpdate(timestamp, doc.RootElement);
+            await _db.WriteRaw(update);
+            Log.Information("Saved raw event {PayloadHash} at {Timestamp}", update.Id, timestamp);
+        }
+        
+        private async Task PlayerDataIngestWorker()
+        {
+            while (_lastTeams == null)
+                await Task.Delay(1000);
+            
+            while (true)
+            {
+                try
+                {
+                    if (_lastTeams != null)
+                    {
+                        await FetchAndSavePlayerData(_lastTeams);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing player data");
+                }
+
+                var currentTime = DateTimeOffset.Now;
+                var currentMinuteSpan = TimeSpan.FromMinutes(currentTime.Minute % 5)
+                    .Add(TimeSpan.FromSeconds(currentTime.Second))
+                    .Add(TimeSpan.FromMilliseconds(currentTime.Millisecond));
+                
+                var delayTime = TimeSpan.FromMinutes(5) - currentMinuteSpan;
+                await Task.Delay(delayTime);
+            }
+        }
+
+        private async Task FetchAndSavePlayerData(TeamUpdate[] teamUpdates)
+        {
+            var players = teamUpdates.SelectMany(GetTeamPlayers).ToArray();
+
+            var chunks = new List<List<Guid>> {new List<Guid>()};
+            foreach (var player in players)
+            {
+                if (chunks.Last().Count >= 100)
+                    chunks.Add(new List<Guid>());
+                
+                chunks.Last().Add(player);
+            }
+            
+            foreach (var chunk in chunks)
+            {
+                var ids = string.Join(',', chunk);
+                await using var stream = await _client.GetStreamAsync("https://www.blaseball.com/database/players?ids=" + ids);
+                
+                var timestamp = DateTimeOffset.UtcNow;
+                
+                var json = await JsonDocument.ParseAsync(stream);
+                var updates = json.RootElement.EnumerateArray()
+                    .Select(u => new PlayerUpdate(timestamp, u))
+                    .ToArray();
+                
+                await _db.WritePlayerUpdates(updates);
+                Log.Information("Saved {PlayerCount} players at {Timestamp}", chunk.Count, timestamp);
+            }
+        }
+
+        private Guid[] GetTeamPlayers(TeamUpdate teamUpdate)
+        {
+            var lineup = teamUpdate.Payload["lineup"].AsBsonArray.Select(x => x.AsGuidString());
+            var rotation = teamUpdate.Payload["rotation"].AsBsonArray.Select(x => x.AsGuidString());
+            return lineup.Concat(rotation).ToArray();
+        }
+
+        private async Task IdolDataIngestWorker()
+        {
+            while (true)
+            {
+                try
+                {
+                    await using var resp = await _client.GetStreamAsync("https://www.blaseball.com/api/getIdols");
+                    var timestamp = DateTimeOffset.UtcNow;
+                    var json = await JsonDocument.ParseAsync(resp);
+
+                    var update = new IdolsUpdate(timestamp, json.RootElement);
+                    await _db.WriteIdolsUpdate(update);
+                    Log.Information("Saved idols update {PayloadHash} at {Timestamp}", update.Id, timestamp);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing idol data");
+                }
+
+                var currentTime = DateTimeOffset.Now;
+                var currentMinuteSpan = TimeSpan.FromSeconds(currentTime.Second)
+                    .Add(TimeSpan.FromMilliseconds(currentTime.Millisecond));
+                var delayTime = TimeSpan.FromMinutes(1) - currentMinuteSpan;
+                await Task.Delay(delayTime);
+            }
         }
         
         private static GameUpdate ParseUpdate(DateTimeOffset timestamp, JsonElement gameObject)
@@ -33,26 +198,7 @@ namespace Blase.Ingest
             var gameUpdate = new GameUpdate(timestamp, gameObject);
             return gameUpdate;
         }
-
-        private static DateTimeOffset? ExtractTimestamp(JsonElement root)
-        {
-            if (!root.TryGetProperty("clientMeta", out var clientMetaProp))
-            {
-                Log.Warning("Couldn't find clientMeta object, skipping line");
-                return null;
-            }
-
-            if (!clientMetaProp.TryGetProperty("timestamp", out var timestampProp))
-            {
-                Log.Warning("Couldn't find timestamp property, skipping line");
-                return null;
-            }
-            
-            var timestampNum = timestampProp.GetInt64();
-            var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(timestampNum);
-            return timestamp;
-        }
-
+        
         private static JsonElement? ExtractSchedule(JsonElement root)
         {
             if (root.TryGetProperty("value", out var valueProp))
@@ -70,118 +216,21 @@ namespace Blase.Ingest
             return scheduleProp;
         }
 
-        private static async Task IngestFromFile(string filename, Datablase db)
+        private static JsonElement? ExtractTeams(JsonElement root)
         {
-            foreach (var file in Directory.GetFiles(filename))
+            if (root.TryGetProperty("value", out var valueProp))
+                root = valueProp;
+
+            if (root.TryGetProperty("leagues", out var leaguesProp))
+                root = leaguesProp;
+            
+            if (!root.TryGetProperty("teams", out var teamsProp))
             {
-                if (!file.EndsWith(".json"))
-                    continue;
-                
-                Log.Information("Indexing file {File}", file);
-
-                await using var str = File.OpenRead(file);
-                var reader = new StreamReader(str);
-
-                async Task Inner(JsonDocument doc)
-                {
-                    await Task.Yield();
-
-                    var timestamp = ExtractTimestamp(doc.RootElement);
-                    if (timestamp == null)
-                        return;
-                    
-                    var scheduleElem = ExtractSchedule(doc.RootElement);
-                    if (scheduleElem == null)
-                        return;
-
-                    var updates = scheduleElem.Value.EnumerateArray()
-                        .Select(elem => ParseUpdate(timestamp.Value, elem))
-                        .Where(u => u != null).ToArray();
-                    await db.WriteGameUpdates(updates);
-                }
-                
-                string line;
-                var tasks = new List<Task>();
-                while ((line = await reader.ReadLineAsync()) != null)
-                {
-                    var doc = JsonDocument.Parse(line);
-                    tasks.Add(Inner(doc));
-                }
-
-                await Task.WhenAll(tasks);
+                Log.Warning("Couldn't find teams prop, skipping line");
+                return null;
             }
             
-            Log.Information("Recalculating game indices");
-            await db.UpdateGameIndex();
-            Log.Information("Done :)");
-        }
-        
-        private static async Task IngestFromStream(Datablase db)
-        {
-            // Fire and forget :)
-            var _ = IngestIdolData(db);
-            
-            async Task Callback(string obj)
-            {
-                var timestamp = DateTimeOffset.UtcNow;
-
-                var doc = JsonDocument.Parse(obj);
-                var update = new RawUpdate(timestamp, doc.RootElement);
-                await db.WriteRaw(update);
-                Log.Information("Saved raw event {PayloadHash} at {Timestamp}", update.Id, timestamp);
-                
-                var scheduleElem = ExtractSchedule(doc.RootElement);
-                if (scheduleElem == null)
-                    return;
-                
-                var games = scheduleElem.Value.EnumerateArray()
-                    .Select(u => ParseUpdate(timestamp, u))
-                    .Where(u => u != null)
-                    .ToArray();
-
-                await db.WriteGameUpdates(games);
-                await db.WriteGameSummaries(games);
-                foreach (var gameUpdate in games)
-                    Log.Information("Saved game update {PayloadHash} (game {GameId})", gameUpdate.Id, gameUpdate.GameId);
-            }
-
-            var stream = new EventStream(new HttpClient(), Log.Logger);
-            await stream.Stream("https://www.blaseball.com/events/streamData", async obj =>
-            {
-                try
-                {
-                    await Callback(obj);
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e, "Error processing stream line");
-                }
-            });
-        }
-
-        private static async Task IngestIdolData(Datablase db)
-        {
-            var client = new HttpClient();
-            
-            while (true)
-            {
-                try
-                {
-                    await using var resp = await client.GetStreamAsync("https://www.blaseball.com/api/getIdols");
-                    var timestamp = DateTimeOffset.UtcNow;
-                    var json = await JsonDocument.ParseAsync(resp);
-
-                    var update = new IdolsUpdate(timestamp, json.RootElement);
-                    await db.WriteIdolsUpdate(update);
-                    Log.Information("Saved idols update {PayloadHash} at {Timestamp}", update.Id, timestamp);
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e, "Error processing idol data");
-                }
-
-                await Task.Delay(TimeSpan.FromMinutes(1));
-            }
+            return teamsProp;
         }
     }
 }
