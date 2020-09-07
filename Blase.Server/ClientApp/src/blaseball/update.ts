@@ -50,6 +50,7 @@ export function isImportant(evt: GamePayload): boolean {
         /feedback/g,
         /Reverb/g,
         /(yummy|allergic) reaction/g,
+        /Blooddrain/g,
     ];
 
     for (const regex of importantMessages)
