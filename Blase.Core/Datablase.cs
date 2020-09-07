@@ -16,6 +16,7 @@ namespace Blase.Core
         private IMongoCollection<IdolsUpdate> _idolUpdates;
         private IMongoCollection<TeamUpdate> _teamUpdates;
         private IMongoCollection<PlayerUpdate> _playerUpdates;
+        private IMongoCollection<JsUpdate> _jsUpdates;
         private IMongoCollection<Game> _games;
 
         public Datablase()
@@ -33,6 +34,7 @@ namespace Blase.Core
             _idolUpdates = _db.GetCollection<IdolsUpdate>("idols");
             _teamUpdates = _db.GetCollection<TeamUpdate>("teams");
             _playerUpdates = _db.GetCollection<PlayerUpdate>("players");
+            _jsUpdates = _db.GetCollection<JsUpdate>("js");
 
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: 1, day: 1 }"));
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: -1, day: -1 }"));
@@ -227,6 +229,18 @@ namespace Blase.Core
                 
                 return new UpdateOneModel<PlayerUpdate>(filter, model) {IsUpsert = true};
             }));
+        }
+
+        public async Task WriteJsUpdate(JsUpdate update)
+        {
+            var filter = Builders<JsUpdate>.Filter.Eq(x => x.Id, update.Id);
+
+            var model = Builders<JsUpdate>.Update
+                .SetOnInsert(x => x.Content, update.Content)
+                .SetOnInsert(x => x.Url, update.Url)
+                .Min(x => x.FirstSeen, update.FirstSeen)
+                .Max(x => x.LastSeen, update.LastSeen);
+            await _jsUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
         }
     }
 }

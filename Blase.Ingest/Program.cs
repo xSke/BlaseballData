@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Blase.Core;
 using Serilog;
@@ -19,7 +20,6 @@ namespace Blase.Ingest
         
         private readonly Datablase _db;
         private readonly HttpClient _client;
-        private TeamUpdate[] _lastTeams;
         
         public Program()
         {
@@ -33,9 +33,9 @@ namespace Blase.Ingest
             var streamTask = StreamDataIngestWorker();
             var idolTask = IdolDataIngestWorker();
             var teamPlayerTask = TeamPlayerDataIngestWorker();
-            await Task.WhenAll(streamTask, idolTask, teamPlayerTask);
+            var jsTask = JsDataIngestWorker();
+            await Task.WhenAll(streamTask, idolTask, teamPlayerTask, jsTask);
         }
-        
 
         private async Task StreamDataIngestWorker()
         {
@@ -211,18 +211,41 @@ namespace Blase.Ingest
             return scheduleProp;
         }
 
-        private static JsonElement? ExtractTeams(JsonElement root)
+        private async Task JsDataIngestWorker()
         {
-            if (root.TryGetProperty("value", out var valueProp))
-                root = valueProp;
-
-            if (root.TryGetProperty("leagues", out var leaguesProp))
-                root = leaguesProp;
-            
-            if (!root.TryGetProperty("teams", out var teamsProp))
-                return null;
-
-            return teamsProp;
+            while (true)
+            {
+                try
+                {
+                    var indexPage = await _client.GetStringAsync("https://www.blaseball.com/");
+                    var regex = new Regex(@"<script\s+src=['""](/[^'""]+)");
+                    
+                    foreach (Match match in regex.Matches(indexPage))
+                    {
+                        var scriptUrl = match.Groups[1].Value;
+                        if (!scriptUrl.EndsWith(".js"))
+                            continue;
+                        
+                        var scriptData = await _client.GetByteArrayAsync("https://www.blaseball.com" + scriptUrl);
+                        var update = new JsUpdate(DateTimeOffset.UtcNow, scriptUrl, scriptData);
+                        await _db.WriteJsUpdate(update);
+                        Log.Information("Logged JS file {JsPath} with hash {JsHash}", update.Url, update.Id);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing JS data");
+                }
+                
+                var currentTime = DateTimeOffset.Now;
+                var currentMinuteSpan = TimeSpan.FromMinutes(currentTime.Minute % 5)
+                    .Add(TimeSpan.FromSeconds(currentTime.Second))
+                    .Add(TimeSpan.FromMilliseconds(currentTime.Millisecond));
+                
+                var delayTime = TimeSpan.FromMinutes(5) - currentMinuteSpan;
+                await Task.Delay(delayTime);
+            }
         }
+
     }
 }
