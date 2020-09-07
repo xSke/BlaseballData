@@ -15,6 +15,7 @@ export function NavMenu() {
           <Button variant="link" as={Link} to="/season/3">Season 3</Button>
           <Button variant="link" as={Link} to="/season/4">Season 4</Button>
           <Button variant="link" as={Link} to="/season/5">Season 5</Button>
+          <Button variant="link" as={Link} to="/season/6">Season 6</Button>
         </Stack>
       </Container>
     </Box>
