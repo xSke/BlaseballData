@@ -29,10 +29,11 @@ namespace Blase.Ingest
         
         public async Task Run()
         {
+            Log.Information("Starting! :)");
             var streamTask = StreamDataIngestWorker();
             var idolTask = IdolDataIngestWorker();
-            var playerTask = PlayerDataIngestWorker();
-            await Task.WhenAll(streamTask, idolTask, playerTask);
+            var teamPlayerTask = TeamPlayerDataIngestWorker();
+            await Task.WhenAll(streamTask, idolTask, teamPlayerTask);
         }
         
 
@@ -45,7 +46,6 @@ namespace Blase.Ingest
                 var doc = JsonDocument.Parse(obj);
                 await SaveRawPayload(timestamp, doc);
                 await SaveGamesPayload(timestamp, doc);
-                await SaveTeamsPayload(timestamp, doc);
             }
 
             var stream = new EventStream(_client, Log.Logger);
@@ -61,21 +61,7 @@ namespace Blase.Ingest
                 }
             });
         }
-
-        private async Task SaveTeamsPayload(DateTimeOffset timestamp, JsonDocument doc)
-        {
-            var teams = ExtractTeams(doc.RootElement);
-            if (teams == null)
-                return;
-
-            var updates = teams.Value.EnumerateArray()
-                .Select(u => new TeamUpdate(timestamp, u))
-                .ToArray();
-
-            await _db.WriteTeamUpdates(updates);
-            Log.Information("Saved {TeamCount} teams at {Timestamp}", updates.Length, timestamp);
-            _lastTeams = updates;
-        }
+        
         private async Task SaveGamesPayload(DateTimeOffset timestamp, JsonDocument doc)
         {
             var scheduleElem = ExtractSchedule(doc.RootElement);
@@ -100,19 +86,14 @@ namespace Blase.Ingest
             Log.Information("Saved raw event {PayloadHash} at {Timestamp}", update.Id, timestamp);
         }
         
-        private async Task PlayerDataIngestWorker()
+        private async Task TeamPlayerDataIngestWorker()
         {
-            while (_lastTeams == null)
-                await Task.Delay(1000);
-            
             while (true)
             {
                 try
                 {
-                    if (_lastTeams != null)
-                    {
-                        await FetchAndSavePlayerData(_lastTeams);
-                    }
+                    var teams = await FetchAndSaveTeamData();
+                    await FetchAndSavePlayerData(teams);
                 }
                 catch (Exception e)
                 {
@@ -127,6 +108,20 @@ namespace Blase.Ingest
                 var delayTime = TimeSpan.FromMinutes(5) - currentMinuteSpan;
                 await Task.Delay(delayTime);
             }
+        }
+
+        private async Task<TeamUpdate[]> FetchAndSaveTeamData()
+        {
+            await using var stream = await _client.GetStreamAsync("https://www.blaseball.com/database/allTeams");
+            var timestamp = DateTimeOffset.UtcNow;
+            var json = await JsonDocument.ParseAsync(stream);
+
+            var updates = json.RootElement.EnumerateArray()
+                .Select(u => new TeamUpdate(timestamp, u))
+                .ToArray();
+            await _db.WriteTeamUpdates(updates);
+            Log.Information("Saved {TeamCount} teams at {Timestamp}", updates.Length, timestamp);
+            return updates;
         }
 
         private async Task FetchAndSavePlayerData(TeamUpdate[] teamUpdates)
@@ -225,11 +220,8 @@ namespace Blase.Ingest
                 root = leaguesProp;
             
             if (!root.TryGetProperty("teams", out var teamsProp))
-            {
-                Log.Warning("Couldn't find teams prop, skipping line");
                 return null;
-            }
-            
+
             return teamsProp;
         }
     }
