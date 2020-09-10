@@ -48,18 +48,26 @@ namespace Blase.Ingest
                 await SaveGamesPayload(timestamp, doc);
             }
 
-            var stream = new EventStream(_client, Log.Logger);
-            await stream.Stream("https://www.blaseball.com/events/streamData", async obj =>
+            try
             {
-                try
+
+                var stream = new EventStream(_client, Log.Logger);
+                await stream.Stream("https://www.blaseball.com/events/streamData", async obj =>
                 {
-                    await Callback(obj);
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e, "Error processing stream line");
-                }
-            });
+                    try
+                    {
+                        await Callback(obj);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error(e, "Error processing stream line");
+                    }
+                });
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "More try/catch blocks? why not! (something stream data error...)");
+            }
         }
         
         private async Task SaveGamesPayload(DateTimeOffset timestamp, JsonDocument doc)
@@ -218,12 +226,12 @@ namespace Blase.Ingest
                 try
                 {
                     var indexPage = await _client.GetStringAsync("https://www.blaseball.com/");
-                    var regex = new Regex(@"<script\s+src=['""](/[^'""]+)");
+                    var regex = new Regex(@"<(?:script\s+src|link\s+href)=['""](/[^'""]+)");
                     
                     foreach (Match match in regex.Matches(indexPage))
                     {
                         var scriptUrl = match.Groups[1].Value;
-                        if (!scriptUrl.EndsWith(".js"))
+                        if (!scriptUrl.EndsWith(".js") && !scriptUrl.EndsWith(".css"))
                             continue;
                         
                         var scriptData = await _client.GetByteArrayAsync("https://www.blaseball.com" + scriptUrl);
