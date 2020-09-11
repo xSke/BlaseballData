@@ -246,11 +246,10 @@ namespace Blase.Ingest
                 }
                 
                 var currentTime = DateTimeOffset.Now;
-                var currentMinuteSpan = TimeSpan.FromMinutes(currentTime.Minute % 5)
-                    .Add(TimeSpan.FromSeconds(currentTime.Second))
+                var currentMinuteSpan = TimeSpan.FromSeconds(currentTime.Second)
                     .Add(TimeSpan.FromMilliseconds(currentTime.Millisecond));
                 
-                var delayTime = TimeSpan.FromMinutes(5) - currentMinuteSpan;
+                var delayTime = TimeSpan.FromMinutes(1) - currentMinuteSpan;
                 await Task.Delay(delayTime);
             }
         }
