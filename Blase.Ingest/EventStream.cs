@@ -27,7 +27,7 @@ namespace Blase.Ingest
                 {
                     _logger.Information("Connecting to stream URL {Url}", url);
                     await using var stream = await _client.GetStreamAsync(url);
-                    var reader = new StreamReader(stream);
+                    using var reader = new StreamReader(stream);
                     
                     _logger.Information("Connected to stream, receiving...");
 

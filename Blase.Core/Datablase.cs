@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using Serilog;
 
@@ -14,6 +15,7 @@ namespace Blase.Core
         private IMongoCollection<GameUpdate> _gameUpdates;
         private IMongoCollection<RawUpdate> _rawUpdates;
         private IMongoCollection<IdolsUpdate> _idolUpdates;
+        private IMongoCollection<IdolsHourly> _idolUpdatesHourly;
         private IMongoCollection<TeamUpdate> _teamUpdates;
         private IMongoCollection<PlayerUpdate> _playerUpdates;
         private IMongoCollection<JsUpdate> _jsUpdates;
@@ -35,11 +37,13 @@ namespace Blase.Core
             _teamUpdates = _db.GetCollection<TeamUpdate>("teams");
             _playerUpdates = _db.GetCollection<PlayerUpdate>("players");
             _jsUpdates = _db.GetCollection<JsUpdate>("js");
+            _idolUpdatesHourly = _db.GetCollection<IdolsHourly>("idolsHourly");
 
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: 1, day: 1 }"));
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: -1, day: -1 }"));
             _gameUpdates.Indexes.CreateOne(new CreateIndexModel<GameUpdate>("{ game: 1, firstSeen: 1 }"));
         }
+
         public async Task WriteGameSummaries(IReadOnlyCollection<GameUpdate> updates)
         {
             await _games.BulkWriteAsync(updates.Select(update =>
@@ -198,7 +202,31 @@ namespace Blase.Core
                 .SetOnInsert(x => x.Payload, update.Payload)
                 .Min(x => x.FirstSeen, update.FirstSeen)
                 .Max(x => x.LastSeen, update.LastSeen);
-            await _idolUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
+            await _idolUpdates.UpdateOneAsync(filter, model, new UpdateOptions {IsUpsert = true});
+
+            await UpdateIdolsHourly(update);
+        }
+
+        private async Task UpdateIdolsHourly(IdolsUpdate update)
+        {
+            var ts = update.FirstSeen;
+            var hour = 
+                new DateTimeOffset(ts.Year, ts.Month, ts.Day, ts.Hour, 0, 0, ts.Offset)
+                .ToOffset(TimeSpan.Zero);
+
+            var value = new IdolsHourly
+            {
+                Hour = hour,
+                Players = update.Payload.AsBsonArray.ToDictionary(
+                    player => player["playerId"].AsGuidString(),
+                    player => player["total"].AsInt32
+                )
+            };
+
+            await _idolUpdatesHourly.ReplaceOneAsync(
+                Builders<IdolsHourly>.Filter.Eq(u => u.Hour, hour),
+                value,
+                new ReplaceOptions {IsUpsert = true});
         }
 
         public async Task WriteTeamUpdates(TeamUpdate[] updates)
@@ -241,6 +269,11 @@ namespace Blase.Core
                 .Min(x => x.FirstSeen, update.FirstSeen)
                 .Max(x => x.LastSeen, update.LastSeen);
             await _jsUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
+        }
+
+        public IAsyncEnumerable<IdolsHourly> GetIdolsHourly()
+        {
+            return _idolUpdatesHourly.FindAsync(new BsonDocument()).ToAsyncEnumerable();
         }
     }
 }

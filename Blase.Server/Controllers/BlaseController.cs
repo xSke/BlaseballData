@@ -53,6 +53,24 @@ namespace Blase.Server.Controllers
             };
         }
 
+        [Route("idols/hourly")]
+        public async Task<IdolsHourlyResponse> IdolsHourly()
+        {
+            var hourly = _db.GetIdolsHourly();
+            return new IdolsHourlyResponse
+            {
+                Hourly = await hourly.Select(h =>
+                    new IdolsHourlyResponse.IdolsHour
+                    {
+                        Timestamp = h.Hour,
+                        Players = h.Players.ToDictionary(k => k.Key.ToString(), v => v.Value)
+                    }
+                )
+                    .OrderBy(h => h.Timestamp)
+                    .ToArrayAsync()
+            };
+        }
+
         [Route("games/{gameId}/updates")]
         public async Task<GameUpdatesResponse> ListGameUpdates(Guid gameId, [Required, FromQuery] GameUpdateQueryFilter filter)
         {
