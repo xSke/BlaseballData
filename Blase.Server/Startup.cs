@@ -26,6 +26,8 @@ namespace Blase.Server
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/build"; });
             
             services.AddSingleton<Datablase>();
+
+            services.AddCors();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -47,6 +49,11 @@ namespace Blase.Server
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            app.UseCors(cors =>
+            {
+                cors.WithMethods("GET").AllowAnyOrigin().Build();
+            });
 
             app.UseEndpoints(endpoints =>
             {
