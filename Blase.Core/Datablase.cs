@@ -19,6 +19,7 @@ namespace Blase.Core
         private IMongoCollection<TeamUpdate> _teamUpdates;
         private IMongoCollection<PlayerUpdate> _playerUpdates;
         private IMongoCollection<JsUpdate> _jsUpdates;
+        private IMongoCollection<GlobalEventsUpdate> _globalEventUpdates;
         private IMongoCollection<Game> _games;
 
         public Datablase()
@@ -37,6 +38,7 @@ namespace Blase.Core
             _teamUpdates = _db.GetCollection<TeamUpdate>("teams");
             _playerUpdates = _db.GetCollection<PlayerUpdate>("players");
             _jsUpdates = _db.GetCollection<JsUpdate>("js");
+            _globalEventUpdates = _db.GetCollection<GlobalEventsUpdate>("globalevents");
             _idolUpdatesHourly = _db.GetCollection<IdolsHourly>("idolsHourly");
 
             _games.Indexes.CreateOne(new CreateIndexModel<Game>("{ season: 1, day: 1 }"));
@@ -219,7 +221,7 @@ namespace Blase.Core
                 Hour = hour,
                 Players = update.Payload.AsBsonArray.ToDictionary(
                     player => player["playerId"].AsGuidString(),
-                    player => player["total"].AsInt32
+                    player => 0
                 )
             };
 
@@ -270,7 +272,18 @@ namespace Blase.Core
                 .Max(x => x.LastSeen, update.LastSeen);
             await _jsUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
         }
+        
+        public async Task WriteGlobalEventsUpdate(GlobalEventsUpdate update)
+        {
+            var filter = Builders<GlobalEventsUpdate>.Filter.Eq(x => x.Id, update.Id);
 
+            var model = Builders<GlobalEventsUpdate>.Update
+                .SetOnInsert(x => x.Payload, update.Payload)
+                .Min(x => x.FirstSeen, update.FirstSeen)
+                .Max(x => x.LastSeen, update.LastSeen);
+            await _globalEventUpdates.UpdateOneAsync(filter, model, new UpdateOptions { IsUpsert = true });
+        }
+        
         public IAsyncEnumerable<IdolsHourly> GetIdolsHourly()
         {
             return _idolUpdatesHourly.FindAsync(new BsonDocument()).ToAsyncEnumerable();

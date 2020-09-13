@@ -34,7 +34,35 @@ namespace Blase.Ingest
             var idolTask = IdolDataIngestWorker();
             var teamPlayerTask = TeamPlayerDataIngestWorker();
             var jsTask = JsDataIngestWorker();
+            var gloablEventsTask = GlobalEventsDataIngestWorker();
             await Task.WhenAll(streamTask, idolTask, teamPlayerTask, jsTask);
+        }
+
+        private async Task GlobalEventsDataIngestWorker()
+        {
+            while (true)
+            {
+                try
+                {
+                    await using var resp = await _client.GetStreamAsync("https://www.blaseball.com/database/globalEvents");
+                    var timestamp = DateTimeOffset.UtcNow;
+                    var json = await JsonDocument.ParseAsync(resp);
+
+                    var update = new GlobalEventsUpdate(timestamp, json.RootElement);
+                    await _db.WriteGlobalEventsUpdate(update);
+                    Log.Information("Saved global events update {PayloadHash} at {Timestamp}", update.Id, timestamp);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing global events data");
+                }
+
+                var currentTime = DateTimeOffset.Now;
+                var currentMinuteSpan = TimeSpan.FromSeconds(currentTime.Second)
+                    .Add(TimeSpan.FromMilliseconds(currentTime.Millisecond));
+                var delayTime = TimeSpan.FromMinutes(1) - currentMinuteSpan;
+                await Task.Delay(delayTime);
+            }
         }
 
         private async Task StreamDataIngestWorker()
@@ -46,6 +74,7 @@ namespace Blase.Ingest
                 var doc = JsonDocument.Parse(obj);
                 await SaveRawPayload(timestamp, doc);
                 await SaveGamesPayload(timestamp, doc);
+                await ExtractAndSaveTeamsPayload(timestamp, doc);
             }
 
             try
@@ -69,7 +98,29 @@ namespace Blase.Ingest
                 Log.Error(e, "More try/catch blocks? why not! (something stream data error...)");
             }
         }
-        
+
+        private async Task ExtractAndSaveTeamsPayload(DateTimeOffset timestamp, JsonDocument doc)
+        {
+            var teams = ExtractTeams(doc.RootElement);
+            if (teams == null)
+                return;
+
+            await SaveTeamUpdates(teams.Value, timestamp);
+        }
+
+        private JsonElement? ExtractTeams(JsonElement root)
+        {
+            if (root.TryGetProperty("value", out var valueProp))
+                root = valueProp;
+
+            if (root.TryGetProperty("leagues", out var leaguesProp))
+                root = leaguesProp;
+            
+            if (!root.TryGetProperty("teams", out var teamsProp))
+                return null;
+
+            return teamsProp;
+        }
         private async Task SaveGamesPayload(DateTimeOffset timestamp, JsonDocument doc)
         {
             var scheduleElem = ExtractSchedule(doc.RootElement);
@@ -124,7 +175,12 @@ namespace Blase.Ingest
             var timestamp = DateTimeOffset.UtcNow;
             var json = await JsonDocument.ParseAsync(stream);
 
-            var updates = json.RootElement.EnumerateArray()
+            return await SaveTeamUpdates(json.RootElement, timestamp);
+        }
+
+        private async Task<TeamUpdate[]> SaveTeamUpdates(JsonElement json, DateTimeOffset timestamp)
+        {
+            var updates = json.EnumerateArray()
                 .Select(u => new TeamUpdate(timestamp, u))
                 .ToArray();
             await _db.WriteTeamUpdates(updates);
