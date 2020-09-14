@@ -1,12 +1,9 @@
-import React from 'react';
-import { Box, useTheme } from '@chakra-ui/core';
+import React, {ReactNode} from 'react';
 
-export const Container = ({ children, ...props }: any) => {
-    const theme = useTheme()
-  
+export const Container = (props: { className?: string, children: ReactNode }) => {
     return (
-      <Box {...props} mx="auto" px={4} w="100%" maxW={['full', 'full', ...theme.breakpoints.slice(1)]}>
-        {children}
-      </Box>
+        <div className={`container mx-auto px-4 ${props.className}`}>
+            {props.children}
+        </div>
     )
-  }
+};

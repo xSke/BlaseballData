@@ -1,23 +1,23 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Text, Spacer, Stack, Button, Box } from '@chakra-ui/core';
 import { Container } from './Container';
 
 export function NavMenu() {
   return (
-    <Box py={4} bg="gray.100">
+    <div className="py-4 mb-2 bg-gray-200">
       <Container>
-        <Stack direction="row" spacing={4}>
-          <Text fontSize="lg" fontWeight="semibold">Blaseball Viewer</Text>
+        <div className="flex flex-row">
+          <div className="flex-1 text-lg font-semibold">Blaseball Viewer</div>
 
-          <Spacer />
-
-          <Button variant="link" as={Link} to="/season/3">Season 3</Button>
-          <Button variant="link" as={Link} to="/season/4">Season 4</Button>
-          <Button variant="link" as={Link} to="/season/5">Season 5</Button>
-          <Button variant="link" as={Link} to="/season/6">Season 6</Button>
-        </Stack>
+          <div className="space-x-4">
+              <Link to="/season/3" className="hover:underline">Season 3</Link>
+              <Link to="/season/4" className="hover:underline">Season 4</Link>
+              <Link to="/season/5" className="hover:underline">Season 5</Link>
+              <Link to="/season/6" className="hover:underline">Season 6</Link>
+              <Link to="/season/7" className="hover:underline">Season 7</Link>
+          </div>
+        </div>
       </Container>
-    </Box>
+    </div>
   )
 }

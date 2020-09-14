@@ -1,11 +1,10 @@
 ﻿import {GamePayload, GameUpdate, isImportant} from "../blaseball/update";
-import {BoxProps, Grid, GridProps, Stack, Tag, TagProps, Text, TextProps, Tooltip} from "@chakra-ui/core";
 import {getBattingTeam} from "../blaseball/team";
-import {FixedEmoji} from "./FixedEmoji";
-import {toEmoji} from "../blaseball/util";
 import {Circles} from "./Circles";
 import React from "react";
 import dayjs from "dayjs";
+import Emoji from "./Emoji";
+import Tooltip from "rc-tooltip";
 
 interface WrappedUpdateProps {
     update: GameUpdate
@@ -15,108 +14,113 @@ interface UpdateProps {
     evt: GamePayload
 }
 
-function Timestamp({update, ...props}: WrappedUpdateProps & TextProps) {
+const TimestampGrid = "col-start-4 col-end-4 lg:col-start-1 lg:col-end-1";
+const ScoreGrid = "col-start-1 col-end-1 lg:col-start-2 lg:col-end-2";
+const GameLogGrid = "col-start-1 col-end-4 lg:col-start-3 lg:col-end-3";
+const BatterGrid = "col-start-2 col-end-2 justify-self-start lg:col-start-4 lg:col-end-4 lg:justify-self-end";
+const AtBatGrid = "col-start-3 col-end-5 justify-self-end lg:col-start-5 lg:col-end-5";
+const DividerGrid = "col-start-1 col-end-5 lg:col-end-6";
+
+function Timestamp({update}: WrappedUpdateProps) {
     const updateTime = dayjs(update.timestamp);
     const time = updateTime.format("mm:ss");
 
-    return <Text as="span" color="gray.600" {...props}>{time}</Text>
+    return <span className={`${TimestampGrid} text-gray-700`}>{time}</span>
 }
 
-function Score({evt, ...props}: UpdateProps & TagProps) {
-    const color = evt.shame ? "purple" : "gray";
-    return <Tag fontWeight="semibold" colorScheme={color} {...props}>
-        {evt.awayScore} - {evt.homeScore}
-    </Tag>;
+function Score({evt}: UpdateProps) {
+    return (
+        <span className={`${ScoreGrid} tag font-semibold bg-gray-200`}>
+            {`${evt.awayScore} - ${evt.homeScore}`}
+        </span>
+    );
 }
 
-function GameLog({evt, ...props}: UpdateProps & TextProps) {
-    const fontWeight = isImportant(evt) ? "semibold" : "normal";
-
-    return <Text fontWeight={fontWeight} {...props}>
-        {evt.lastUpdate}
-    </Text>;
+function GameLog({evt}: UpdateProps) {
+    const fontWeight = isImportant(evt) ? "font-semibold" : "font-normal";
+    return <span className={`${GameLogGrid} ${fontWeight}`}>{evt.lastUpdate}</span>;
 }
 
-function Batter({evt, ...props}: UpdateProps & TagProps & TextProps) {
+function Batter({evt}: UpdateProps) {
     const team = getBattingTeam(evt);
 
     if (!team.batterName)
         // "hide" when there's no batter
-        return <Text as="span" {...props} />;
+        return <span className={`${BatterGrid}`}/>;
 
-    return <Tag size="sm" pr={2} {...props}>
-        <FixedEmoji w={4} mx={1}>{toEmoji(team.emoji)}</FixedEmoji>
-        <Text {...props}>{team.batterName}</Text>
-    </Tag>
+    return (
+        <span className={`${BatterGrid} text-sm bg-gray-200 rounded px-2 py-1 inline-flex items-center justify-center`}>
+            <Emoji emoji={team.emoji} />
+            <span className="ml-1">{team.batterName}</span>
+        </span>
+    );
 }
 
-const Balls = ({evt, ...props}: UpdateProps & TextProps) =>
-    <Circles label="Balls" amount={evt.atBatBalls} total={3} {...props} />;
+const Balls = ({evt}: UpdateProps) =>
+    <Circles label="Balls" amount={evt.atBatBalls} total={3} />;
 
-const Strikes = ({evt, ...props}: UpdateProps & TextProps) =>
-    <Circles label="Strikes" amount={evt.atBatStrikes} total={2} {...props} />;
+const Strikes = ({evt}: UpdateProps) =>
+    <Circles label="Strikes" amount={evt.atBatStrikes} total={2} />;
 
-const Outs = ({evt, ...props}: UpdateProps & TextProps) =>
-    <Circles label="Outs" amount={evt.halfInningOuts} total={2} {...props} />;
+const Outs = ({evt}: UpdateProps) =>
+    <Circles label="Outs" amount={evt.halfInningOuts} total={2} />;
 
-function AtBatInfo({evt, ...props}: UpdateProps & BoxProps) {
-    return <Stack direction="row" spacing={2} {...props}>
+function AtBatInfo({evt}: UpdateProps) {
+    return <div className={`${AtBatGrid} flex flex-row`}>
+        <BlaseRunners evt={evt}/>
         <Balls evt={evt}/>
         <Strikes evt={evt}/>
         <Outs evt={evt}/>
-    </Stack>;
+    </div>;
 }
 
-function Base({base, evt, ...props}: { base: number } & UpdateProps & TextProps) {
+function Base({base, evt}: { base: number } & UpdateProps) {
     const {basesOccupied, baseRunnerNames} = evt;
 
     const myIndex = basesOccupied.indexOf(base);
-    if (myIndex > -1) {
-        // Older logs (pre-S4) don't have defined blaserunner identities
-        if (baseRunnerNames) {
-            return (
-                <Tooltip label={baseRunnerNames[myIndex]}>
-                    <Text as="span" {...props}>{"\u{25C6}"}</Text>
-                </Tooltip>
-            );
-        } else {
-            return <Text as="span" {...props}>{"\u{25C6}"}</Text>;
-        }
-    } else {
-        return <Text as="span" {...props}>{"\u{25C7}"}</Text>;
+    const glyph = myIndex > -1 ? "\u{25C6}" : "\u{25C7}";
+    
+    const name = (myIndex > -1 && baseRunnerNames) ? baseRunnerNames[myIndex] : null;
+    
+    if (name) {
+        return (
+            <Tooltip placement="top" overlay={<span>{name}</span>}>
+                <span className={`BlaseRunners-Base-${base}`}>
+                    {glyph}
+                </span>
+            </Tooltip>
+        )
     }
+    
+    return (
+        <span className={`BlaseRunners-Base-${base}`}>
+            {glyph}
+        </span>
+    );
 }
 
-function BlaseRunners({evt, ...props}: UpdateProps & BoxProps) {
-    return <Text as="span" fontSize="2xl" lineHeight="1.5rem" letterSpacing="-10px" mr={2} {...props}>
-        <Base evt={evt} base={2} position="relative" top="3px"/>
-        <Base evt={evt} base={1} position="relative" top="-7px"/>
-        <Base evt={evt} base={0} position="relative" top="3px"/>
-    </Text>
+function BlaseRunners({evt}: UpdateProps) {
+    return (
+        <span className="BlaseRunners">
+            <Base evt={evt} base={2}/>
+            <Base evt={evt} base={1}/>
+            <Base evt={evt} base={0}/>
+        </span>
+    )
 }
 
-export const UpdateRow = React.memo(function UpdateRow({update, ...props}: WrappedUpdateProps & GridProps) {
+export const UpdateRow = React.memo(function UpdateRow({update, ...props}: WrappedUpdateProps) {
     const evt = update.payload;
-
-    return <Grid
-        autoFlow="row dense"
-        columnGap={2} rowGap={2}
-        templateColumns={{base: "auto auto 1fr auto", lg: "auto auto 1fr auto auto"}}
-        py={2}
-        borderBottom="1px solid"
-        borderBottomColor="gray.200"
-        {...props}
-    >
-        <GameLog evt={evt} gridColumn={{base: "1/span 3", lg: 3}}/>
-        <Timestamp update={update} gridColumn={{base: 4, lg: 1}}/>
-        <Score evt={evt} gridColumn={{base: 1, lg: 2}}/>
-        <Batter evt={evt} gridColumn={{base: 2, lg: 4}}/>
-
-        <Stack spacing={2} direction="row" justifySelf="end" gridColumn={{base: "3/span 2", lg: 6}}>
-            <BlaseRunners evt={evt}/>
-            <AtBatInfo evt={evt}/>
-        </Stack>
-    </Grid>;
+    
+    return <div className="contents">
+        <GameLog evt={evt}/>
+        <Timestamp update={update}/>
+        <Score evt={evt}/>
+        <Batter evt={evt}/>
+        <AtBatInfo evt={evt}/>
+        
+        <div className={`${DividerGrid} border-b border-solid border-gray-300`} />
+    </div>;
 }, (oldProps, newProps) => {
     return oldProps.update.id == newProps.update.id
 });

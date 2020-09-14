@@ -1,11 +1,10 @@
 import React from "react";
-import { Text, Spinner, VStack } from "@chakra-ui/core";
+import Spinner from "./Spinner";
 
 export function Loading() {
     return (
-        <VStack my={8}>
-            <Spinner />
-            <Text>Loading...</Text>
-        </VStack>
+        <div className="my-8 text-lg text-center">
+            <Spinner /> <span className="text-gray-600">Loading...</span>
+        </div>
     );
 }

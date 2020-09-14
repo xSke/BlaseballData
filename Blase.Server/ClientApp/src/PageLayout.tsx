@@ -1,21 +1,16 @@
 import React from 'react';
-import { Stack, VStack, Center, Text, Box } from '@chakra-ui/core';
 import { NavMenu } from './components/NavMenu';
-import { Container } from './components/Container';
-
 
 export function PageLayout(props: {children: React.ReactNode}) {
     return (
-        <Stack spacing={4}>
+        <div>
             <NavMenu />
             
-            <Box>
-                {props.children}
-            </Box>
+            {props.children}
 
-            <Text fontSize="sm" textAlign="center" mb={4} as="em" color="gray.700">
-                Brought to you by the {"\u{1f36c}"} Kansas City Breath Mints: <em>"Fresh Breath, Here We Come."</em>
-            </Text>
-        </Stack>
+            <div className="text-sm text-center my-4 italic text-gray-600">
+                Brought to you by the {"\u{1f36c}"} Kansas City Breath Mints.
+            </div>
+        </div>
     )
 }

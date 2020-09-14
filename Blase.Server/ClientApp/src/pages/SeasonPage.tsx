@@ -4,14 +4,14 @@ import React, {useEffect} from 'react';
 import {DayTable} from "../components/DayTable";
 import {Loading} from "../components/Loading";
 import {Container} from "../components/Container";
-import {Alert, AlertIcon, Heading} from "@chakra-ui/core";
 import {useGameList} from "../blaseball/api";
+import Error from "../components/Error";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {cache} from "swr";
 
 function GamesListFetching(props: {season: number}) {
     let { days, error, nextPage } = useGameList(props.season, 10);
-    if (error) return <Alert status="error"><AlertIcon/>{error}</Alert>;
+    if (error) return <Error>{error}</Error>;
     
     if (!days)
         return <Loading/>;
@@ -41,8 +41,8 @@ export function SeasonPage() {
     useEffect(() => cache.clear(), [season]);
     
     return (
-        <Container my={4}>
-            <Heading>Games in Season {season}</Heading>
+        <Container className={"mt-4"}>
+            <h2 className="text-2xl font-semibold mb-4">Games in Season {season}</h2>
             
             <GamesListFetching season={season} />
         </Container>

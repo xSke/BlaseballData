@@ -1,34 +1,37 @@
 ﻿import {GamePayload, GameUpdate, isImportant} from "../blaseball/update";
-import {Box, BoxProps, Heading, StackProps, Text, TextProps} from "@chakra-ui/core";
 import React, {useMemo} from "react";
 import {UpdateRow} from "./UpdateRow";
-import {getPitchingTeam} from "../blaseball/team";
-import {List, WindowScroller, AutoSizer, CellMeasurerCache, CellMeasurer, ListRowRenderer} from "react-virtualized";
+import {getBattingTeam, getPitchingTeam} from "../blaseball/team";
+
+import "../style/GamePage.css";
+import Emoji from "./Emoji";
+
 interface UpdateProps {
     evt: GamePayload
 }
 
-function Pitcher({evt, ...props}: UpdateProps & TextProps) {
-    const team = getPitchingTeam(evt);
+export const InningHeader = React.memo(function InningHeader(props: UpdateProps) {
+    const arrow = props.evt.topOfInning ? "\u25B2" : "\u25BC";
+    const halfString = props.evt.topOfInning ? "Top" : "Bottom";
+    const pitchingTeam = getPitchingTeam(props.evt);
+    const battingTeam = getBattingTeam(props.evt);
 
-    if (!team.pitcherName)
-        return <Text as="span" {...props} />;
-
-    return <Text {...props} fontSize="sm">
-        <Text as="span" fontWeight="semibold">{team.pitcherName}</Text> pitching for the {team.name}
-    </Text>
-}
-
-export const InningHeader = React.memo(function InningHeader({evt, ...props}: UpdateProps & BoxProps) {
-    const arrow = evt.topOfInning ? "\u25B2" : "\u25BC";
-    const halfString = evt.topOfInning ? "Top" : "Bottom";
-    return <Box {...props} pt={6}>
-        <Heading size="md">{arrow} {halfString} of {evt.inning+1}</Heading>
-        <Pitcher evt={evt} />
-    </Box>;
+    return (
+        <div className="col-span-4 lg:col-span-5 mb-2 my-4">
+            <h4 className="text-xl font-semibold">{arrow} {halfString} of {props.evt.inning+1}</h4>
+            
+            <div className="text-sm">
+                <strong><Emoji emoji={pitchingTeam.emoji} /> {pitchingTeam.name}</strong> fielding, with <strong>{pitchingTeam.pitcherName}</strong> pitching
+            </div>
+            
+            <div className="text-sm">
+                <strong><Emoji emoji={battingTeam.emoji} /> {battingTeam.name}</strong> batting
+            </div>
+        </div>
+    );
 });
 
-interface GameUpdateListProps extends StackProps {
+interface GameUpdateListProps {
     updates: GameUpdate[];
     updateOrder: "asc" | "desc";
     filterImportant: boolean;
@@ -79,60 +82,23 @@ function groupByInning(updates: GameUpdate[], direction: "asc" | "desc", filterI
     return elements;
 }
 
-export function GameUpdateList({updates, updateOrder, filterImportant, ...props}: GameUpdateListProps) {
-    if (updateOrder == "desc")
-        updates = [...updates].reverse();
-    
-    const elements = useMemo(() => groupByInning(updates, updateOrder, filterImportant), [updates, updateOrder, filterImportant]);
-    
-    const cache = useMemo(() => new CellMeasurerCache({
-        defaultHeight: 40,
-        minHeight: 40,
-        fixedWidth: true
-    }), [updateOrder, filterImportant, updates.length])
-    
-    const rowRenderer: ListRowRenderer = ({key, parent, index, isScrolling, isVisible, style}) => {
-        const elem = elements[index];
-        
-        let content;
-        if (elem.type === "row")
-            content = <div key={key} style={style}><UpdateRow update={elem.update} /></div>;
-        else
-            content = <div key={key} style={style}><InningHeader evt={elem.update.payload} pt={4}/></div>;
-        
-        return (
-            <CellMeasurer
-                cache={cache}
-                key={key}
-                parent={parent}
-                rowIndex={index}
-            >
-                {content}
-            </CellMeasurer>
-        );
-    };
+export function GameUpdateList(props: GameUpdateListProps) {
+    const updates = props.updateOrder === "desc"
+        ? [...props.updates].reverse()
+        : props.updates;
 
+    const elements = useMemo(
+        () => groupByInning(updates, props.updateOrder, props.filterImportant), 
+        [updates, props.updateOrder, props.filterImportant]);
+    
     return (
-            <WindowScroller>
-                {({height, isScrolling, scrollTop}) => (
-                    <AutoSizer disableHeight>
-                        {({width}) => (
-                            <List
-                                autoHeight
-                                width={width}
-                                height={height}
-                                isScrolling={isScrolling}
-                                rowCount={elements.length}
-                                estimatedRowSize={40}
-                                overscanRowCount={25}
-                                rowHeight={cache.rowHeight}
-                                rowRenderer={rowRenderer}
-                                deferredMeasurementCache={cache}
-                                scrollTop={scrollTop}
-                            />
-                        )}
-                    </AutoSizer>
-                )}
-            </WindowScroller>
+        <div className="grid grid-flow-row-dense gap-2 items-center" style={{gridTemplateColumns: "auto auto 1fr"}}>
+            {elements.map(elem => {
+                if (elem.type === "row")
+                    return <UpdateRow key={elem.update.id + "_update"} update={elem.update} />;
+                else
+                    return <InningHeader key={elem.update.id + "_heading"} evt={elem.update.payload} />;
+            })}
+        </div>
     );
 }
