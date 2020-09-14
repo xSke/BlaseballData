@@ -35,7 +35,7 @@ namespace Blase.Ingest
             var teamPlayerTask = TeamPlayerDataIngestWorker();
             var jsTask = JsDataIngestWorker();
             var gloablEventsTask = GlobalEventsDataIngestWorker();
-            await Task.WhenAll(streamTask, idolTask, teamPlayerTask, jsTask);
+            await Task.WhenAll(streamTask, idolTask, teamPlayerTask, jsTask, gloablEventsTask);
         }
 
         private async Task GlobalEventsDataIngestWorker()
@@ -195,7 +195,7 @@ namespace Blase.Ingest
             var chunks = new List<List<Guid>> {new List<Guid>()};
             foreach (var player in players)
             {
-                if (chunks.Last().Count >= 100)
+                if (chunks.Last().Count >= 200)
                     chunks.Add(new List<Guid>());
                 
                 chunks.Last().Add(player);
@@ -222,7 +222,9 @@ namespace Blase.Ingest
         {
             var lineup = teamUpdate.Payload["lineup"].AsBsonArray.Select(x => x.AsGuidString());
             var rotation = teamUpdate.Payload["rotation"].AsBsonArray.Select(x => x.AsGuidString());
-            return lineup.Concat(rotation).ToArray();
+            var bullpen = teamUpdate.Payload["bullpen"].AsBsonArray.Select(x => x.AsGuidString());
+            var bench = teamUpdate.Payload["bench"].AsBsonArray.Select(x => x.AsGuidString());
+            return lineup.Concat(rotation).Concat(bullpen).Concat(bench).ToArray();
         }
 
         private async Task IdolDataIngestWorker()
