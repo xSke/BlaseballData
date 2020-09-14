@@ -196,6 +196,16 @@ namespace Blase.Core
                 .ToAsyncEnumerable();
         }
 
+        public async Task<(DateTimeOffset, BsonValue)> GetLastSim()
+        {
+            var value = await _rawUpdates.FindAsync("{}", new FindOptions<RawUpdate, BsonValue>()
+            {
+                Projection = "{sim: '$payload.value.games.sim', firstSeen: '$firstSeen'}",
+                Sort = "{firstSeen: -1}"
+            }).ToAsyncEnumerable().FirstAsync();
+            return (new DateTimeOffset(value["firstSeen"].ToUniversalTime(), TimeSpan.Zero), value["sim"]);
+        }
+
         public async Task WriteIdolsUpdate(IdolsUpdate update)
         {
             var filter = Builders<IdolsUpdate>.Filter.Eq(x => x.Id, update.Id);

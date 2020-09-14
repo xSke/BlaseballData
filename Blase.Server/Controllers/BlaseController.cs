@@ -69,6 +69,17 @@ namespace Blase.Server.Controllers
             };
         }
 
+        [Route("sim")]
+        public async Task<SimResponse> GetSim()
+        {
+            var (timestamp, sim) = await _db.GetLastSim();
+            return new SimResponse
+            {
+                Sim = JsonDocument.Parse(sim.ToString()).RootElement,
+                Timestamp = timestamp
+            };
+        }
+
         [Route("games/{gameId}/updates")]
         public async Task<GameUpdatesResponse> ListGameUpdates(Guid gameId, [Required, FromQuery] GameUpdateQueryFilter filter)
         {
