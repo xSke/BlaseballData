@@ -15,11 +15,12 @@ interface OutcomeType {
 }
 
 export const outcomeTypes: OutcomeType[] = [
-    {name: "Reverb", emoji: "\u{1F30A}", search: [/reverb/gi], color: "blue"},
-    {name: "Feedback", emoji: "\u{1F3A4}", search: [/feedback/gi], color: "pink"},
-    {name: "Incineration", emoji: "\u{1F525}", search: [/rogue umpire/gi], color: "orange"},
-    {name: "Peanut", emoji: "\u{1F95C}", search: [/peanut/gi], color: "orange"},
-    {name: "Blooddrain", emoji: "\u{1FA78}", search: [/blooddrain/gi], color: "red"}
+    {name: "Reverb", emoji: "\u{1F30A}", search: [/reverb/i], color: "blue"},
+    {name: "Feedback", emoji: "\u{1F3A4}", search: [/feedback/i], color: "pink"},
+    {name: "Incineration", emoji: "\u{1F525}", search: [/rogue umpire/i], color: "orange"},
+    {name: "Peanut", emoji: "\u{1F95C}", search: [/peanut/i], color: "orange"},
+    {name: "Blooddrain", emoji: "\u{1FA78}", search: [/blooddrain/i], color: "purple"},
+    {name: "Unstable", emoji: "\u{1F525}", search: [/Unstable/i], color: "blue"}
 ]
 
 export function getOutcomes(evt: GamePayload): Outcome[] {
