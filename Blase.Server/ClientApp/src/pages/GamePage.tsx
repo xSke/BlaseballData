@@ -40,7 +40,7 @@ interface PayloadProps {
 const GameHeading = (props: PayloadProps) => (
     <>
         <h2 className="text-3xl font-semibold">
-            Season {props.evt.season}, Day {props.evt.day}
+            Season {props.evt.season+1}, Day {props.evt.day+1}
         </h2>
         <h3>
             <strong>{props.evt.awayTeamName}</strong>
