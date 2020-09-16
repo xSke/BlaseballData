@@ -35,7 +35,8 @@ namespace Blase.Ingest
             var teamPlayerTask = TeamPlayerDataIngestWorker();
             var jsTask = JsDataIngestWorker();
             var gloablEventsTask = GlobalEventsDataIngestWorker();
-            await Task.WhenAll(streamTask, idolTask, teamPlayerTask, jsTask, gloablEventsTask);
+            var futureGamesTask = FutureGameDataIngestWorker();
+            await Task.WhenAll(streamTask, idolTask, teamPlayerTask, jsTask, gloablEventsTask, futureGamesTask);
         }
 
         private async Task GlobalEventsDataIngestWorker()
@@ -190,29 +191,35 @@ namespace Blase.Ingest
 
         private async Task FetchAndSavePlayerData(TeamUpdate[] teamUpdates)
         {
-            var players = teamUpdates.SelectMany(GetTeamPlayers).ToArray();
-
+            var playersOnRoster = teamUpdates.SelectMany(GetTeamPlayers).ToArray();
+            var knownPlayers = await _db.GetKnownPlayerIds();
+            
+            var allPlayers = new HashSet<Guid>();
+            allPlayers.UnionWith(playersOnRoster);
+            allPlayers.UnionWith(knownPlayers);
+            
             var chunks = new List<List<Guid>> {new List<Guid>()};
-            foreach (var player in players)
+            foreach (var player in allPlayers)
             {
                 if (chunks.Last().Count >= 200)
                     chunks.Add(new List<Guid>());
-                
+
                 chunks.Last().Add(player);
             }
-            
+
             foreach (var chunk in chunks)
             {
                 var ids = string.Join(',', chunk);
-                await using var stream = await _client.GetStreamAsync("https://www.blaseball.com/database/players?ids=" + ids);
-                
+                await using var stream =
+                    await _client.GetStreamAsync("https://www.blaseball.com/database/players?ids=" + ids);
+
                 var timestamp = DateTimeOffset.UtcNow;
-                
+
                 var json = await JsonDocument.ParseAsync(stream);
                 var updates = json.RootElement.EnumerateArray()
                     .Select(u => new PlayerUpdate(timestamp, u))
                     .ToArray();
-                
+
                 await _db.WritePlayerUpdates(updates);
                 Log.Information("Saved {PlayerCount} players at {Timestamp}", chunk.Count, timestamp);
             }
@@ -312,5 +319,46 @@ namespace Blase.Ingest
             }
         }
 
+        private async Task FutureGameDataIngestWorker()
+        {
+            while (true)
+            {
+                try
+                {
+                    var (_, currentSim) = await _db.GetLastSim();
+                    var season = currentSim["season"].AsInt32;
+                    var day = currentSim["day"].AsInt32;
+
+                    for (var futureDay = day + 1; futureDay < 99; futureDay++)
+                    {
+                        var stream = await _client.GetStreamAsync(
+                            $"https://www.blaseball.com/database/games?season={season}&day={futureDay}");
+                        var timestamp = DateTimeOffset.UtcNow;
+                        var json = await JsonDocument.ParseAsync(stream);
+
+                        var updates = json.RootElement.EnumerateArray()
+                            .Select(game => new GameUpdate(timestamp, game))
+                            .ToArray();
+                        
+                        await _db.WriteGameUpdates(updates);
+                        
+                        Log.Information("Saved future game updates for S{Season}D{Day} at {Timestamp}", season + 1, futureDay + 1, timestamp);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing JS data");
+                }
+
+                var currentTime = DateTimeOffset.Now;
+                var currentHourSpan =
+                    TimeSpan.FromMinutes(currentTime.Minute)
+                        .Add(TimeSpan.FromSeconds(currentTime.Second))
+                        .Add(TimeSpan.FromMilliseconds(currentTime.Millisecond));
+
+                var delayTime = TimeSpan.FromHours(1) - currentHourSpan;
+                await Task.Delay(delayTime);
+            }
+        }
     }
 }
