@@ -19,7 +19,8 @@ namespace Blase.Core
 
         public IdolsUpdate(DateTimeOffset timestamp, JsonElement payload)
         {
-            Id = JsonHash.HashHex(payload);
+            // Id = JsonHash.HashHex(payload); // temporarily don't store by hash...
+            Id = Guid.NewGuid().ToString();
             FirstSeen = timestamp;
             LastSeen = timestamp;
 
