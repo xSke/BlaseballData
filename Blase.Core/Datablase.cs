@@ -298,5 +298,32 @@ namespace Blase.Core
         {
             return _idolUpdatesHourly.FindAsync(new BsonDocument()).ToAsyncEnumerable();
         }
+
+        public IAsyncEnumerable<TeamUpdate> GetTeamUpdates(Guid team, DateTimeOffset? before, DateTimeOffset? after, int order)
+        {
+            var filter = Builders<TeamUpdate>.Filter.Eq(u => u.TeamId, team);
+            if (before != null)
+                filter &= Builders<TeamUpdate>.Filter.Lt(u => u.FirstSeen, before.Value);
+            if (after != null)
+                filter &= Builders<TeamUpdate>.Filter.Gt(u => u.FirstSeen, after.Value);
+
+            return _teamUpdates
+                .FindAsync(filter, new FindOptions<TeamUpdate>
+                {
+                    Sort = new BsonDocument("firstSeen", order)
+                })
+                .ToAsyncEnumerable();
+        }
+
+        public async Task<List<Guid>> GetKnownPlayerIds()
+        {
+            var players = await _playerUpdates
+                .Aggregate()
+                .Group(@"{_id: '$player'}")
+                .ToListAsync();
+            return players
+                .Select(doc => doc["_id"].AsGuidString())
+                .ToList();
+        }
     }
 }
