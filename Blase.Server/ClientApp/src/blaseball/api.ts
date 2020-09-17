@@ -3,6 +3,9 @@ import { Day } from "./game";
 import useSWR, {useSWRInfinite} from "swr";
 import {useEffect, useState} from "react";
 
+// empty string local, also try eg. https://blase.srv.astr.cc/
+const BASE_URL = "";
+
 export interface GamesResponse {
     days: Day[]
 }
@@ -24,7 +27,7 @@ export function useGameList(season: number, pageSize: number) {
             // at the end! :)
             return null;
 
-        return `/api/games?season=${season-1}&day=${startDay}&dayCount=${pageSize}&reverse=true`
+        return BASE_URL + `/api/games?season=${season-1}&day=${startDay}&dayCount=${pageSize}&reverse=true`
     }
 
     const { data, size, setSize, error } = useSWRInfinite<GamesResponse>(getNextPage, {
@@ -51,7 +54,7 @@ interface GameUpdatesHookReturn {
 
 export function useGameUpdates(game: string, autoRefresh: boolean): GameUpdatesHookReturn {
     // First load of original data
-    const { data: initialData, error } = useSWR<GameUpdatesResponse>(`/api/games/${game}/updates`,  {revalidateOnFocus: false});
+    const { data: initialData, error } = useSWR<GameUpdatesResponse>(BASE_URL + `/api/games/${game}/updates`,  {revalidateOnFocus: false});
     
     // Updates added via autoupdating
     const [extraUpdates, setExtraUpdates] = useState<GameUpdate[]>([]);
@@ -71,7 +74,7 @@ export function useGameUpdates(game: string, autoRefresh: boolean): GameUpdatesH
             const lastUpdate = allUpdates[allUpdates.length - 1];
             const lastTimestamp = lastUpdate.timestamp;
             
-            const url = `/api/games/${game}/updates?after=${encodeURIComponent(lastTimestamp)}`;
+            const url = BASE_URL + `/api/games/${game}/updates?after=${encodeURIComponent(lastTimestamp)}`;
             const response = await fetch(url);
             const json = <GameUpdatesResponse>(await response.json());
             
