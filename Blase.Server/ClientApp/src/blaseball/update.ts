@@ -8,6 +8,9 @@ export interface GamePayload {
     atBatStrikes: number;
     atBatBalls: number;
     halfInningOuts: number;
+    
+    homeStrikes: number;
+    awayStrikes: number;
 
     season: number;
     day: number;

@@ -9,6 +9,7 @@ export interface TeamInfo {
     score: number;
     isBatting: boolean;
     isPitching: boolean;
+    maxStrikes: number;
 }
 
 export function getBattingTeam(evt: GamePayload): TeamInfo {
@@ -31,7 +32,8 @@ export function getTeam(evt: GamePayload, team: "home" | "away"): TeamInfo {
             nickname: evt.homeTeamNickname,
             score: evt.homeScore,
             isBatting: !evt.topOfInning,
-            isPitching: evt.topOfInning
+            isPitching: evt.topOfInning,
+            maxStrikes: evt.homeStrikes
         };
     } else {
         return {
@@ -42,7 +44,8 @@ export function getTeam(evt: GamePayload, team: "home" | "away"): TeamInfo {
             nickname: evt.awayTeamNickname,
             score: evt.awayScore,
             isBatting: evt.topOfInning,
-            isPitching: !evt.topOfInning
+            isPitching: !evt.topOfInning,
+            maxStrikes: evt.awayStrikes
         }
     }
 }

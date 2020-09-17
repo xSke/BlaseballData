@@ -59,8 +59,10 @@ function Batter({evt}: UpdateProps) {
 const Balls = ({evt}: UpdateProps) =>
     <Circles label="Balls" amount={evt.atBatBalls} total={3} />;
 
-const Strikes = ({evt}: UpdateProps) =>
-    <Circles label="Strikes" amount={evt.atBatStrikes} total={2} />;
+const Strikes = ({evt}: UpdateProps) => {
+    const totalStrikes = getBattingTeam(evt).maxStrikes;
+    return <Circles label="Strikes" amount={evt.atBatStrikes} total={totalStrikes-1}/>;
+}
 
 const Outs = ({evt}: UpdateProps) =>
     <Circles label="Outs" amount={evt.halfInningOuts} total={2} />;
