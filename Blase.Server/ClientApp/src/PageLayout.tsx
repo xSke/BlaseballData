@@ -9,8 +9,9 @@ export function PageLayout(props: {children: React.ReactNode}) {
             {props.children}
 
             <div className="text-sm text-center my-4 italic text-gray-600">
-                Brought to you by the {"\u{1f36c}"} Kansas City Breath Mints.
-            </div>
+                Brought to you by the {"\u{1f36c}"} Breath Mints.
+                <br />
+                <a href="https://twitter.com/floofstrid">Author</a> | <a href="https://github.com/xSke/BlaseballData">GitHub</a> | <a href="https://discord.gg/XKppCuj">SIBR Discord</a> </div>
         </div>
     )
 }

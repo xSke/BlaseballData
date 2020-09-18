@@ -14,6 +14,10 @@
     label {
         @apply cursor-pointer;
     }
+    
+    a:hover {
+        @apply underline;
+    }
 }
 
 @layer components {
