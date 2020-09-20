@@ -5,6 +5,7 @@ import {SWRConfig} from 'swr'
 import {GamePage} from "./pages/GamePage";
 import {SeasonPage} from "./pages/SeasonPage";
 import {Home} from "./pages/Home";
+import {EventsPage} from "./pages/EventsPage";
 
 export default function App() {
     return (
@@ -13,6 +14,7 @@ export default function App() {
                 <Switch>
                     <Route path='/game/:gameId' component={GamePage}/>
                     <Route path='/season/:season' component={SeasonPage}/>
+                    <Route path='/events' component={EventsPage}/>
                     <Route path='/' component={Home} />
                 </Switch>
             </PageLayout>

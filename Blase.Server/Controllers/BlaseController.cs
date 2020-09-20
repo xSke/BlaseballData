@@ -20,6 +20,23 @@ namespace Blase.Server.Controllers
             _db = db;
         }
 
+        [Route("events")]
+        public async Task<GameEventsResponse> GamesWithOutcomes([FromQuery] DateTimeOffset? before)
+        {
+            return new GameEventsResponse
+            {
+                Games = await _db.GetGamesWithOutcomes(before).Take(100)
+                    .Select(g => new ApiGame
+                    {
+                        Start = g.Start,
+                        End = g.End,
+                        Id = g.Id,
+                        LastUpdate = JsonDocument.Parse(g.LastUpdate.ToString()).RootElement,
+                        LastUpdateTime = g.LastUpdateTime
+                    }).ToArrayAsync()
+            };
+        }
+
         [Route("games")]
         public async Task<GameListResponse> ListGames([Required, FromQuery] GameQueryFilter filter)
         {

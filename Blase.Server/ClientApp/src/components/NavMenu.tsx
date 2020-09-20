@@ -10,11 +10,13 @@ export function NavMenu() {
           <div className="flex-1 text-lg font-semibold">Reblase</div>
 
           <div className="space-x-4">
-              <Link to="/season/3" className="hover:underline">Season 3</Link>
-              <Link to="/season/4" className="hover:underline">Season 4</Link>
-              <Link to="/season/5" className="hover:underline">Season 5</Link>
-              <Link to="/season/6" className="hover:underline">Season 6</Link>
-              <Link to="/season/7" className="hover:underline">Season 7</Link>
+              <Link to="/season/3">Season 3</Link>
+              <Link to="/season/4">Season 4</Link>
+              <Link to="/season/5">Season 5</Link>
+              <Link to="/season/6">Season 6</Link>
+              <Link to="/season/7">Season 7</Link>
+              <Link to="/season/8">Season 8</Link>
+              <Link to="/events"><strong>Recent events</strong></Link>
           </div>
         </div>
       </Container>

@@ -156,6 +156,21 @@ namespace Blase.Core
             public DateTimeOffset? Start;
         }
 
+        public IAsyncEnumerable<Game> GetGamesWithOutcomes(DateTimeOffset? before)
+        {
+            var filter = new BsonDocument
+            {
+                {"lastUpdate.outcomes", new BsonDocument("$ne", new BsonArray())},
+            };
+            if (before != null)
+                filter.Add("lastUpdateTime", new BsonDocument("$lt", new BsonDateTime(before.Value.UtcDateTime)));
+            
+            return _games.FindAsync(filter, new FindOptions<Game>
+            {
+                Sort = Builders<Game>.Sort.Descending(g => g.LastUpdateTime)
+            }).ToAsyncEnumerable();
+        }
+
         public IAsyncEnumerable<GameDay> GetGamesByDay(int season, int dayStart, bool reverse)
         {
             var filter = reverse

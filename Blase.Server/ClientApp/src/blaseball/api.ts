@@ -1,5 +1,5 @@
 import { GameUpdate } from "./update";
-import { Day } from "./game";
+import {Day, Game} from "./game";
 import useSWR, {useSWRInfinite} from "swr";
 import {useEffect, useState} from "react";
 
@@ -8,6 +8,10 @@ const BASE_URL = "";
 
 export interface GamesResponse {
     days: Day[]
+}
+
+export interface EventsResponse {
+    games: Game[]
 }
 
 export interface GameUpdatesResponse {
@@ -89,4 +93,37 @@ export function useGameUpdates(game: string, autoRefresh: boolean): GameUpdatesH
         isLoading: !initialData,
         error
     }
+}
+
+
+interface GameEventsHookReturn {
+    games: Game[];
+    error: any;
+    isLoading: boolean;
+    nextPage: () => void;
+}
+
+
+export function useGameEvents(): GameEventsHookReturn {
+    function getNextPage(pageIndex: number, previousPageData: EventsResponse | null) {
+        if (previousPageData == null)
+            return BASE_URL + "/api/events";
+        if (previousPageData?.games.length == 0)
+            return null;
+        
+        const games = previousPageData?.games ?? [];
+        const lastGameTimestamp = games[games?.length-1].lastUpdateTime;
+
+        return BASE_URL + `/api/events?before=${lastGameTimestamp}`;
+    }
+    
+    const { data, error, size, setSize } = useSWRInfinite<EventsResponse>(getNextPage,  {revalidateOnFocus: false});
+    
+    const games = data && data.map(page => page.games).flat();
+    return {
+        games: games ?? [],
+        error, 
+        isLoading: !data,
+        nextPage: () => setSize(size + 1)
+    };
 }
