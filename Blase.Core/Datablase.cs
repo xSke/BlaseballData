@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
 using Serilog;
 
@@ -15,6 +16,7 @@ namespace Blase.Core
         private IMongoCollection<GameUpdate> _gameUpdates;
         private IMongoCollection<RawUpdate> _rawUpdates;
         private IMongoCollection<IdolsUpdate> _idolUpdates;
+        private IMongoCollection<TributesUpdate> _tributesUpdate;
         private IMongoCollection<IdolsHourly> _idolUpdatesHourly;
         private IMongoCollection<TeamUpdate> _teamUpdates;
         private IMongoCollection<PlayerUpdate> _playerUpdates;
@@ -35,6 +37,7 @@ namespace Blase.Core
             _gameUpdates = _db.GetCollection<GameUpdate>("gameupdates2");
             _rawUpdates = _db.GetCollection<RawUpdate>("rawupdates2");
             _idolUpdates = _db.GetCollection<IdolsUpdate>("idols");
+            _tributesUpdate = _db.GetCollection<TributesUpdate>("tributes");
             _teamUpdates = _db.GetCollection<TeamUpdate>("teams");
             _playerUpdates = _db.GetCollection<PlayerUpdate>("players");
             _jsUpdates = _db.GetCollection<JsUpdate>("js");
@@ -217,6 +220,17 @@ namespace Blase.Core
             await _idolUpdates.UpdateOneAsync(filter, model, new UpdateOptions {IsUpsert = true});
 
             await UpdateIdolsHourly(update);
+        }
+        
+        public async Task WriteTributesUpdate(TributesUpdate update)
+        {
+            var filter = Builders<TributesUpdate>.Filter.Eq(x => x.Id, update.Id);
+            
+            var model = Builders<TributesUpdate>.Update
+                .SetOnInsert(x => x.Payload, update.Payload)
+                .Min(x => x.FirstSeen, update.FirstSeen)
+                .Max(x => x.LastSeen, update.LastSeen);
+            await _tributesUpdate.UpdateOneAsync(filter, model, new UpdateOptions {IsUpsert = true});
         }
 
         private async Task UpdateIdolsHourly(IdolsUpdate update)

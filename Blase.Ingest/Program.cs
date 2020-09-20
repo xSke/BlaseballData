@@ -32,11 +32,12 @@ namespace Blase.Ingest
             Log.Information("Starting! :)");
             var streamTask = StreamDataIngestWorker();
             var idolTask = IdolDataIngestWorker();
+            var tributesTask = TributesDataIngestWorker();
             var teamPlayerTask = TeamPlayerDataIngestWorker();
             var jsTask = JsDataIngestWorker();
             var gloablEventsTask = GlobalEventsDataIngestWorker();
             var futureGamesTask = FutureGameDataIngestWorker();
-            await Task.WhenAll(streamTask, idolTask, teamPlayerTask, jsTask, gloablEventsTask, futureGamesTask);
+            await Task.WhenAll(streamTask, idolTask, tributesTask, teamPlayerTask, jsTask, gloablEventsTask, futureGamesTask);
         }
 
         private async Task GlobalEventsDataIngestWorker()
@@ -261,6 +262,33 @@ namespace Blase.Ingest
             }
         }
         
+        private async Task TributesDataIngestWorker()
+        {
+            while (true)
+            {
+                try
+                {
+                    await using var resp = await _client.GetStreamAsync("https://www.blaseball.com/api/getTribute");
+                    var timestamp = DateTimeOffset.UtcNow;
+                    var json = await JsonDocument.ParseAsync(resp);
+
+                    var update = new TributesUpdate(timestamp, json.RootElement);
+                    await _db.WriteTributesUpdate(update);
+                    Log.Information("Saved tributes update {PayloadHash} at {Timestamp}", update.Id, timestamp);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error processing tributes data");
+                }
+
+                var currentTime = DateTimeOffset.Now;
+                var currentMinuteSpan = TimeSpan.FromSeconds(currentTime.Second)
+                    .Add(TimeSpan.FromMilliseconds(currentTime.Millisecond));
+                var delayTime = TimeSpan.FromMinutes(1) - currentMinuteSpan;
+                await Task.Delay(delayTime);
+            }
+        }
+
         private static GameUpdate ParseUpdate(DateTimeOffset timestamp, JsonElement gameObject)
         {
             var gameUpdate = new GameUpdate(timestamp, gameObject);
