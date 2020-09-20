@@ -101,6 +101,7 @@ interface GameEventsHookReturn {
     error: any;
     isLoading: boolean;
     nextPage: () => void;
+    hasMoreData: boolean;
 }
 
 
@@ -114,7 +115,7 @@ export function useGameEvents(): GameEventsHookReturn {
         const games = previousPageData?.games ?? [];
         const lastGameTimestamp = games[games?.length-1].lastUpdateTime;
 
-        return BASE_URL + `/api/events?before=${lastGameTimestamp}`;
+        return BASE_URL + `/api/events?before=${encodeURIComponent(lastGameTimestamp)}`;
     }
     
     const { data, error, size, setSize } = useSWRInfinite<EventsResponse>(getNextPage,  {revalidateOnFocus: false});
@@ -124,6 +125,7 @@ export function useGameEvents(): GameEventsHookReturn {
         games: games ?? [],
         error, 
         isLoading: !data,
-        nextPage: () => setSize(size + 1)
+        nextPage: () => setSize(size + 1),
+        hasMoreData: data ? data[data.length-1].games.length > 0 : true
     };
 }

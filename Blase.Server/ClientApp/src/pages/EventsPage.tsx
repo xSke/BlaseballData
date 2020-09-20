@@ -38,7 +38,7 @@ const EventRow = ({evt}: {evt: GameEvent}) => {
 }
 
 export function EventsPage() {
-    const {games, isLoading, error, nextPage} = useGameEvents();
+    const {games, isLoading, error, nextPage, hasMoreData} = useGameEvents();
     
     if (error) return <Error>{error.toString()}</Error>
     if (isLoading) return <Loading/>;
@@ -78,13 +78,12 @@ export function EventsPage() {
             <div className="flex flex-col">
                 <InfiniteScroll
                     next={nextPage}
-                    hasMore={true}
+                    hasMore={hasMoreData}
                     loader={<Loading />}
                     dataLength={events.length}
                     scrollThreshold="500px"
                 >
                     {events.map((evt, idx) => <EventRow evt={evt} key={idx} />)}
-
                 </InfiniteScroll>
             </div>
         </Container>
