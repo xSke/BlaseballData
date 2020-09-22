@@ -42,21 +42,25 @@ export type GameUpdate = {
     payload: GamePayload
 }
 
-export function isImportant(evt: GamePayload): boolean {
-    const importantMessages: RegExp[] = [
-        /hits a (Single|Double|Triple|grand slam)/g,
-        /hits a (solo|2-run|3-run) home run/g,
-        /steals (second base|third base|home)/g,
-        /scores/g,
-        /(2s|3s) score/g,
-        /Rogue Umpire/g,
-        /feedback/g,
-        /Reverb/g,
-        /(yummy|allergic) reaction/g,
-        /Blooddrain/g,
-        /Unstable/g
-    ];
+const importantMessages: RegExp[] = [
+    /hits a (Single|Double|Triple|grand slam)/,
+    /hits a (solo|2-run|3-run) home run/,
+    /steals (second base|third base|home)/,
+    /scores/,
+    /(2s|3s) score/,
+    /Rogue Umpire/,
+    /feedback/,
+    /Reverb/,
+    /(yummy|allergic) reaction/,
+    /Blooddrain/,
+    /Unstable/,
+    /Flickering/,
+    /hits [\w\s]+ with a pitch/,
+    /The Shame Pit/,
+    /Red Hot/,
+];
 
+export function isImportant(evt: GamePayload): boolean {
     for (const regex of importantMessages)
         if (regex.test(evt.lastUpdate))
             return true;

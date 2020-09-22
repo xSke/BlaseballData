@@ -22,7 +22,8 @@ export const outcomeTypes: OutcomeType[] = [
     {name: "Incineration", emoji: "\u{1F525}", search: [/rogue umpire/i], color: "orange"},
     {name: "Peanut", emoji: "\u{1F95C}", search: [/peanut/i], color: "orange"},
     {name: "Blooddrain", emoji: "\u{1FA78}", search: [/blooddrain/i], color: "purple"},
-    {name: "Unstable", emoji: "\u{1F974}", search: [/Unstable/i], color: "blue"}
+    {name: "Unstable", emoji: "\u{1F974}", search: [/Unstable/i], color: "blue"},
+    {name: "Flickering", emoji: "\u{26A1}", search: [/Flickering/i], color: "blue"}
 ]
 
 export function getOutcomes(evt: GamePayload): Outcome[] {
