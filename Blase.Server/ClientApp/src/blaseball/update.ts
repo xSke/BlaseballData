@@ -58,6 +58,7 @@ const importantMessages: RegExp[] = [
     /hits [\w\s]+ with a pitch/,
     /The Shame Pit/,
     /Red Hot/,
+    /they peck [\w\s]+ free!/
 ];
 
 export function isImportant(evt: GamePayload): boolean {
